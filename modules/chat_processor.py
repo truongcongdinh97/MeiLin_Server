@@ -55,11 +55,6 @@ class ChatProcessor:
                 return role
         # Có thể mở rộng bằng intent detection hoặc mapping từ khóa
         return None
-    def __init__(self, rag_system):
-        self.rag_system = rag_system
-        # Load config (legacy, cho backward compatibility)
-        self.llm_provider = None
-        self.tts_provider = None
         
     def __init__(self, rag_system, llm_provider=None, tts_provider=None):
         self.rag_system = rag_system

@@ -22,3 +22,11 @@ openpyxl
 
 # Encryption
 cryptography
+
+# Hotkey support (for main.py CLI mode)
+keyboard
+
+# YouTube integration (optional)
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2

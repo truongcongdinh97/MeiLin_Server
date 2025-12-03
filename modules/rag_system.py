@@ -25,6 +25,36 @@ from modules.config_loader import load_config_with_env
 from modules.local_chromadb import get_local_chromadb
 
 
+def get_embedding_from_api(texts, api_url=None):
+    """
+    Encode texts thành embeddings qua Embedding Service API.
+    Args:
+        texts: list of strings to encode
+        api_url: Optional API URL (default: from env EMBEDDING_API_URL)
+    Returns:
+        List of embeddings (list of floats)
+    """
+    if isinstance(texts, str):
+        texts = [texts]
+    
+    url = api_url or os.getenv('EMBEDDING_API_URL', 'http://embedding_service:8008')
+    
+    try:
+        response = requests.post(
+            f"{url}/embed",
+            json={"texts": texts},
+            timeout=30
+        )
+        if response.status_code == 200:
+            return response.json().get('embeddings', [])
+        else:
+            print(f"[Embedding] API error: {response.status_code}")
+            return [[0.0] * 384] * len(texts)  # Fallback zero vector
+    except Exception as e:
+        print(f"[Embedding] Error: {e}")
+        return [[0.0] * 384] * len(texts)  # Fallback zero vector
+
+
 class EmbeddingClient:
     """Client để gọi embedding service API"""
     def __init__(self, api_url: str = None):
