@@ -402,27 +402,167 @@ def get_ota_stats():
             "status": "error"
         }), 500
 
+
+# ============================================================
+# PUBLIC RAG API - Cho ESP32 devices (read-only knowledge base)
+# ============================================================
+from modules.public_rag_api import get_public_rag_api, require_api_key
+
+@app.route('/public/rag/query', methods=['POST'])
+@require_api_key
+def public_rag_query():
+    """
+    Query knowledge base (PUBLIC - read-only)
+    Yêu cầu API key trong header: X-API-Key
+    
+    Request JSON:
+    {
+        "query": "Câu hỏi về MeiLin",
+        "top_k": 3  (optional, default 3)
+    }
+    
+    Response JSON:
+    {
+        "results": [
+            {"content": "...", "relevance": 0.85},
+            ...
+        ],
+        "count": 3
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        query = data.get('query', '').strip()
+        top_k = min(data.get('top_k', 3), 5)  # Max 5 results
+        
+        if not query:
+            return jsonify({
+                'error': 'Query is required',
+                'status': 'error'
+            }), 400
+        
+        api = get_public_rag_api()
+        results = api.query_knowledge(query, top_k)
+        
+        # Log request
+        api.log_request(request.api_key, query, len(results))
+        
+        return jsonify({
+            'results': results,
+            'count': len(results),
+            'status': 'success'
+        }), 200
+        
+    except Exception as e:
+        print(f"[ERROR] Public RAG query: {e}")
+        return jsonify({
+            'error': 'Internal error',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/public/register', methods=['POST'])
+def public_register_device():
+    """
+    Đăng ký device mới để nhận API key
+    
+    Request JSON:
+    {
+        "device_id": "esp32_abc123",
+        "device_name": "Living Room MeiLin" (optional)
+    }
+    
+    Response JSON:
+    {
+        "api_key": "meilin_pk_...",
+        "message": "Device registered successfully"
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        device_id = data.get('device_id', '').strip()
+        device_name = data.get('device_name', '')
+        
+        if not device_id:
+            return jsonify({
+                'error': 'device_id is required',
+                'status': 'error'
+            }), 400
+        
+        # Validate device_id format
+        if len(device_id) < 6 or len(device_id) > 50:
+            return jsonify({
+                'error': 'device_id must be 6-50 characters',
+                'status': 'error'
+            }), 400
+        
+        api = get_public_rag_api()
+        api_key = api.generate_api_key(device_id, device_name)
+        
+        print(f"[PublicAPI] New device registered: {device_id}")
+        
+        return jsonify({
+            'api_key': api_key,
+            'device_id': device_id,
+            'message': 'Device registered successfully. Save your API key!',
+            'usage': {
+                'endpoint': '/public/rag/query',
+                'header': 'X-API-Key: ' + api_key,
+                'rate_limit': '30 requests/minute'
+            },
+            'status': 'success'
+        }), 201
+        
+    except Exception as e:
+        print(f"[ERROR] Device registration: {e}")
+        return jsonify({
+            'error': 'Registration failed',
+            'status': 'error'
+        }), 500
+
+
+@app.route('/public/stats', methods=['GET'])
+@require_api_key
+def public_device_stats():
+    """Lấy thống kê sử dụng của device"""
+    try:
+        api = get_public_rag_api()
+        stats = api.get_device_stats(request.api_key)
+        
+        return jsonify({
+            'stats': stats,
+            'status': 'success'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'error': 'Failed to get stats',
+            'status': 'error'
+        }), 500
+
+
 if __name__ == '__main__':
     print("\n" + "="*60)
     print("🚀 MeiLin API Server for ESP32/IoT Devices")
     print("="*60)
-    print("\n📡 Endpoints:")
+    print("\n📡 Private Endpoints (full access):")
     print("  - GET  /health          : Kiểm tra server")
     print("  - POST /chat            : Chat với MeiLin")
-    print("  - POST /tts             : Text-to-Speech (optional)")
+    print("  - POST /tts             : Text-to-Speech")
     print("  - GET  /user/info       : Lấy thông tin user")
-    print("  - GET  /api/ota/check   : Kiểm tra firmware update")
-    print("  - GET  /api/ota/download: Download firmware")
-    print("  - POST /api/ota/status  : Report OTA status")
-    print("  - GET  /api/ota/stats   : Lấy thống kê OTA")
+    print("  - GET  /api/ota/*       : OTA updates")
+    print("\n🌐 Public Endpoints (read-only, API key required):")
+    print("  - POST /public/register     : Đăng ký device, nhận API key")
+    print("  - POST /public/rag/query    : Query knowledge base")
+    print("  - GET  /public/stats        : Xem thống kê sử dụng")
+    print("\n🔑 Để sử dụng Public API:")
+    print("  1. POST /public/register với device_id")
+    print("  2. Nhận api_key: meilin_pk_...")
+    print("  3. Thêm header: X-API-Key: meilin_pk_...")
     print("\n🌐 Server đang chạy tại:")
     print("  - Local:   http://127.0.0.1:5000")
     print("  - Network: http://<your_ip>:5000")
-    print("\n💡 Ví dụ request từ ESP32:")
-    print('  POST http://<your_ip>:5000/chat')
-    print('  Body: {"message": "Xin chào", "username": "ESP32_001"}')
     print("\n" + "="*60 + "\n")
     
     # Chạy server
-    # host='0.0.0.0' cho phép ESP32 truy cập từ mạng LAN
     app.run(host='0.0.0.0', port=5000, debug=False)
