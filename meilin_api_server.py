@@ -9,8 +9,8 @@ from modules.provider_manager import get_provider_manager
 from modules.providers.factory import ProviderFactory
 from modules.ota_manager import get_ota_manager
 from modules.esp_device_manager import get_esp_device_manager
-from modules.user_manager import get_user_manager
-from modules.api_key_manager import get_api_key_manager
+from modules.multi_user.user_manager import get_user_manager
+from modules.multi_user.api_key_manager import get_api_key_manager
 import logging
 
 app = Flask(__name__)
@@ -710,6 +710,268 @@ def public_rag_query():
             'error': 'Internal error',
             'status': 'error'
         }), 500
+
+
+@app.route('/public/register', methods=['GET'])
+def public_register_page():
+    """Trang đăng ký device với GUI"""
+    html = '''
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeiLin - ESP32 Device Registration</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 5px;
+        }
+        .logo p {
+            color: #888;
+            font-size: 0.9em;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+        input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .hint {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 5px;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+        .result.success {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+        }
+        .result.error {
+            background: #ffebee;
+            border: 2px solid #f44336;
+        }
+        .result h3 {
+            margin-bottom: 15px;
+        }
+        .result.success h3 { color: #2e7d32; }
+        .result.error h3 { color: #c62828; }
+        .api-key {
+            background: #333;
+            color: #4caf50;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        .copy-btn {
+            background: #4caf50;
+            padding: 10px 20px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .warning {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.9em;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        .info-box h4 {
+            color: #1565c0;
+            margin-bottom: 10px;
+        }
+        .info-box code {
+            background: #bbdefb;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>🤖 MeiLin</h1>
+            <p>ESP32 Device Registration</p>
+        </div>
+        
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="device_id">📱 Device ID *</label>
+                <input type="text" id="device_id" name="device_id" 
+                       placeholder="esp32_living_room" required
+                       minlength="6" maxlength="50"
+                       pattern="[a-zA-Z0-9_-]+">
+                <p class="hint">6-50 ký tự, chỉ chữ cái, số, _ và -</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="device_name">🏷️ Device Name (tùy chọn)</label>
+                <input type="text" id="device_name" name="device_name" 
+                       placeholder="MeiLin Phòng khách">
+                <p class="hint">Tên dễ nhớ cho device của bạn</p>
+            </div>
+            
+            <button type="submit" id="submitBtn">
+                🚀 Đăng ký Device
+            </button>
+        </form>
+        
+        <div class="result" id="result">
+            <h3 id="resultTitle"></h3>
+            <div id="resultContent"></div>
+        </div>
+        
+        <div class="info-box">
+            <h4>📋 Hướng dẫn sử dụng</h4>
+            <p>1. Nhập Device ID (unique cho mỗi ESP32)</p>
+            <p>2. Nhấn "Đăng ký Device"</p>
+            <p>3. Copy API Key và cấu hình trong ESP32</p>
+            <p>4. Sử dụng endpoint <code>/public/rag/query</code> để query</p>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const result = document.getElementById('result');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultContent = document.getElementById('resultContent');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Đang đăng ký...';
+            result.style.display = 'none';
+            
+            try {
+                const response = await fetch('/public/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        device_id: document.getElementById('device_id').value,
+                        device_name: document.getElementById('device_name').value
+                    })
+                });
+                
+                const data = await response.json();
+                
+                result.style.display = 'block';
+                
+                if (response.ok && data.api_key) {
+                    result.className = 'result success';
+                    resultTitle.textContent = '✅ Đăng ký thành công!';
+                    resultContent.innerHTML = `
+                        <p><strong>Device ID:</strong> ${data.device_id}</p>
+                        <p><strong>API Key:</strong></p>
+                        <div class="api-key" id="apiKey">${data.api_key}</div>
+                        <button class="copy-btn" onclick="copyApiKey()">📋 Copy API Key</button>
+                        <div class="warning">
+                            ⚠️ <strong>Quan trọng:</strong> Lưu API Key này ngay! 
+                            Bạn sẽ không thể xem lại sau khi đóng trang.
+                        </div>
+                    `;
+                } else {
+                    result.className = 'result error';
+                    resultTitle.textContent = '❌ Lỗi đăng ký';
+                    resultContent.innerHTML = `<p>${data.error || 'Có lỗi xảy ra'}</p>`;
+                }
+            } catch (error) {
+                result.style.display = 'block';
+                result.className = 'result error';
+                resultTitle.textContent = '❌ Lỗi kết nối';
+                resultContent.innerHTML = `<p>${error.message}</p>`;
+            }
+            
+            btn.disabled = false;
+            btn.textContent = '🚀 Đăng ký Device';
+        });
+        
+        function copyApiKey() {
+            const apiKey = document.getElementById('apiKey').textContent;
+            navigator.clipboard.writeText(apiKey).then(() => {
+                alert('✅ Đã copy API Key!');
+            });
+        }
+    </script>
+</body>
+</html>
+    '''
+    return html
 
 
 @app.route('/public/register', methods=['POST'])
