@@ -5,6 +5,7 @@ sentence-transformers
 pyyaml
 python-dotenv
 asyncio
+flask
 fastapi
 uvicorn
 requests
@@ -22,6 +23,10 @@ openpyxl
 
 # Encryption
 cryptography
+
+# TTS audio playback
+pygame
+edge-tts
 
 # Hotkey support (for main.py CLI mode)
 keyboard
