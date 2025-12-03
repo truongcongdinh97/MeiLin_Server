@@ -23,7 +23,7 @@
     }
   },
   "xiaozhi_integration": {
-    "backend_url": "http://192.168.1.100:5000",
+    "backend_url": "http://YOUR_SERVER_IP:5000",
     "wifi_ssid": "YOUR_WIFI_SSID",
     "wifi_password": "YOUR_WIFI_PASSWORD",
     "device_id": "esp32_meilin_001",

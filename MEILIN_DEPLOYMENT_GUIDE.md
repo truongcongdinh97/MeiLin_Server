@@ -20,7 +20,7 @@ your-new-service:
 ```yaml
 ingress:
   # Existing rules...
-  - hostname: your-service.truongcongdinh.org
+  - hostname: your-service.your-domain.org
     service: http://your-service:port
 ```
 
@@ -41,10 +41,10 @@ ingress:
 
 ### 2. **Cloudflared Configuration**
 - `cloudflared/config.yml` - Cấu hình tunnel với 4 domains:
-  - `meilin.truongcongdinh.org` → API server
-  - `telegram-meilin.truongcongdinh.org` → Telegram bot
-  - `youtube-meilin.truongcongdinh.org` → YouTube livestream
-  - `chroma-meilin.truongcongdinh.org` → ChromaDB
+  - `meilin.your-domain.org` → API server
+  - `telegram-meilin.your-domain.org` → Telegram bot
+  - `youtube-meilin.your-domain.org` → YouTube livestream
+  - `chroma-meilin.your-domain.org` → ChromaDB
 
 ### 3. **Deployment Scripts**
 - `deploy-ubuntu.sh` - Script tự động deploy trên Ubuntu
@@ -84,7 +84,7 @@ DEEPSEEK_API_KEY=your_key_here
 ```
 ┌─────────────────────────────────────────────────┐
 │            Cloudflare Tunnel                    │
-│  meilin.truongcongdinh.org  →  cloudflared     │
+│  meilin.your-domain.org  →  cloudflared     │
 └─────────────────────┬───────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────┐
@@ -144,7 +144,7 @@ postgres:
 ```yaml
 ingress:
   # Existing rules...
-  - hostname: db-meilin.truongcongdinh.org
+  - hostname: db-meilin.your-domain.org
     service: http://postgres:5432
 ```
 

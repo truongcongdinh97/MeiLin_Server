@@ -42,7 +42,7 @@ class CommandExecutor:
                     "keywords": ["bật đèn", "mở đèn", "turn on light"],
                     "type": "http",
                     "http_config": {
-                        "url": "http://192.168.1.100/api/light/on",
+                        "url": "http://YOUR_DEVICE_IP/api/light/on",
                         "method": "GET"
                     },
                     "response": "Đã bật đèn rồi nè!"

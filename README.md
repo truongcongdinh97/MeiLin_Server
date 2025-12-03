@@ -1,6 +1,6 @@
 # 🎭 MeiLin AI VTuber Project
 
-[![GitHub](https://img.shields.io/badge/GitHub-PROJECT__MEILIN__AIVTUBER-blue?logo=github)](https://github.com/truongcongdinh97/PROJECT_MEILIN_AIVTUBER)
+[![GitHub](https://img.shields.io/badge/GitHub-PROJECT__MEILIN__AIVTUBER-blue?logo=github)](https://github.com/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER)
 [![Python](https://img.shields.io/badge/Python-3.13-green?logo=python)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -73,7 +73,7 @@
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/truongcongdinh97/PROJECT_MEILIN_AIVTUBER.git
+git clone https://github.com/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER.git
 cd PROJECT_MEILIN_AIVTUBER
 
 # 2. Install dependencies
@@ -537,7 +537,7 @@ PROJECT_MEILIN_AIVTUBER/
 We welcome contributions from the community!
 
 ### 🐛 Bug Reports
-- Use [GitHub Issues](https://github.com/truongcongdinh97/PROJECT_MEILIN_AIVTUBER/issues)
+- Use [GitHub Issues](https://github.com/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER/issues)
 - Include Python version, OS, error logs
 - Describe steps to reproduce
 
@@ -641,8 +641,8 @@ Thanks to the VTuber community for inspiration and the open-source community for
 
 ### 🆘 Need Help?
 - 📖 **Documentation**: Check the [docs/](docs/) folder
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/truongcongdinh97/PROJECT_MEILIN_AIVTUBER/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/truongcongdinh97/PROJECT_MEILIN_AIVTUBER/discussions)
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER/discussions)
 - 📧 **Email**: Create an issue for direct support
 
 ### 💡 Common Issues
@@ -664,7 +664,7 @@ Thanks to the VTuber community for inspiration and the open-source community for
 
 ### Quick Setup (5 minutes)
 ```bash
-git clone https://github.com/truongcongdinh97/PROJECT_MEILIN_AIVTUBER.git
+git clone https://github.com/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER.git
 cd PROJECT_MEILIN_AIVTUBER
 pip install -r requirements.txt
 cp .env.example .env
@@ -690,9 +690,9 @@ python main.py
 
 ## 🏆 Project Stats
 
-![GitHub stars](https://img.shields.io/github/stars/truongcongdinh97/PROJECT_MEILIN_AIVTUBER?style=social)
-![GitHub forks](https://img.shields.io/github/forks/truongcongdinh97/PROJECT_MEILIN_AIVTUBER?style=social)
-![GitHub watchers](https://img.shields.io/github/watchers/truongcongdinh97/PROJECT_MEILIN_AIVTUBER?style=social)
+![GitHub stars](https://img.shields.io/github/stars/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER?style=social)
+![GitHub forks](https://img.shields.io/github/forks/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER?style=social)
+![GitHub watchers](https://img.shields.io/github/watchers/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER?style=social)
 
 ---
 
@@ -700,11 +700,11 @@ python main.py
 
 ### 🎭 Build Your Own AI VTuber Today!
 
-**[⭐ Star](https://github.com/truongcongdinh97/PROJECT_MEILIN_AIVTUBER)** • **[🍴 Fork](https://github.com/truongcongdinh97/PROJECT_MEILIN_AIVTUBER/fork)** • **[📖 Documentation](docs/)** • **[🐛 Issues](https://github.com/truongcongdinh97/PROJECT_MEILIN_AIVTUBER/issues)**
+**[⭐ Star](https://github.com/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER)** • **[🍴 Fork](https://github.com/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER/fork)** • **[📖 Documentation](docs/)** • **[🐛 Issues](https://github.com/YOUR_GITHUB_USERNAME/PROJECT_MEILIN_AIVTUBER/issues)**
 
 ---
 
-Made with ❤️ by [Truong Cong Dinh](https://github.com/truongcongdinh97)
+Made with ❤️ by [Truong Cong Dinh](https://github.com/YOUR_GITHUB_USERNAME)
 
 **MIT License** • **Free to use** • **Open Source**
 

@@ -21,7 +21,7 @@ services:
       - OWNER_USERNAME=${OWNER_USERNAME}
       - CHROMADB_API_URL=${CHROMADB_API_URL}
       - CHROMADB_API_TOKEN=${CHROMADB_API_TOKEN}
-      - API_BASE_URL=https://meilin.truongcongdinh.org
+      - API_BASE_URL=https://your-domain.com
       - PYTHONUNBUFFERED=1
     volumes:
       - ./audio_cache:/app/audio_cache
