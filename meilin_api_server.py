@@ -11,6 +11,8 @@ from modules.ota_manager import get_ota_manager
 from modules.esp_device_manager import get_esp_device_manager
 from modules.multi_user.user_manager import get_user_manager
 from modules.multi_user.api_key_manager import get_api_key_manager
+from modules.iot_device_controller import get_iot_controller
+import asyncio
 import logging
 
 app = Flask(__name__)
@@ -26,6 +28,7 @@ ota_manager = get_ota_manager()
 esp_device_manager = get_esp_device_manager()
 user_manager = get_user_manager()
 api_key_manager = get_api_key_manager()
+iot_controller = get_iot_controller()
 print(f"✅ MeiLin API Server đã sẵn sàng! (TTS: {tts_config['provider']})")
 
 # Tắt log Flask mặc định (chỉ hiển thị error)
@@ -253,6 +256,239 @@ def command():
         return jsonify({
             "error": str(e),
             "status": "error"
+        }), 500
+
+# ============================================================================
+# IoT Smart Home Control API (For ESP32 + XiaoZhi Hybrid Mode)
+# ============================================================================
+
+@app.route('/iot/check', methods=['POST'])
+def iot_check_command():
+    """
+    Kiểm tra xem message có phải lệnh IoT không.
+    ESP32 có thể gọi API này TRƯỚC khi gửi đến XiaoZhi.
+    
+    Request JSON:
+    {
+        "message": "bật đèn phòng khách",
+        "device_api_key": "meilin_dev_xxxx"
+    }
+    
+    Response:
+    - Nếu là lệnh IoT: {"is_iot": true, "response": "Đã bật đèn...", "executed": true}
+    - Nếu không: {"is_iot": false} → ESP32 gửi tiếp đến XiaoZhi
+    """
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        device_key = data.get('device_api_key', '')
+        
+        if not message:
+            return jsonify({
+                "is_iot": False,
+                "error": "Missing message"
+            }), 400
+        
+        # Validate device key để lấy user
+        device_info = esp_device_manager.validate_device_key(device_key)
+        if not device_info:
+            return jsonify({
+                "is_iot": False,
+                "error": "Invalid device key"
+            }), 401
+        
+        telegram_user_id = device_info.get('telegram_user_id')
+        
+        # Lấy db_user_id từ telegram_user_id
+        db_user_id = user_manager.get_user_id_by_telegram(str(telegram_user_id))
+        
+        if not db_user_id:
+            return jsonify({
+                "is_iot": False,
+                "error": "User not found"
+            }), 404
+        
+        # Parse message để tìm IoT command
+        device, action, params = iot_controller.parse_command(db_user_id, message)
+        
+        if device is None or action is None:
+            # Không phải lệnh IoT → ESP32 gửi đến XiaoZhi
+            return jsonify({
+                "is_iot": False,
+                "message": message
+            }), 200
+        
+        # Thực thi lệnh IoT
+        print(f"🏠 [IoT] Device={device.device_name}, Action={action.action_name}")
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                iot_controller.execute_action(
+                    user_id=db_user_id,
+                    device=device,
+                    action=action,
+                    params=params,
+                    trigger_source="esp32",
+                    trigger_message=message
+                )
+            )
+        finally:
+            loop.close()
+        
+        # Build response
+        if result.status.value == 'success':
+            response_text = f"Dạ, {result.message} ạ!"
+            executed = True
+        else:
+            response_text = f"Ối, {result.message}"
+            executed = False
+        
+        return jsonify({
+            "is_iot": True,
+            "executed": executed,
+            "response": response_text,
+            "device": device.device_name,
+            "action": action.action_name,
+            "status": result.status.value,
+            "execution_time_ms": result.execution_time_ms
+        }), 200
+        
+    except Exception as e:
+        print(f"[ERROR] IoT check error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "is_iot": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/iot/execute', methods=['POST'])
+def iot_execute_action():
+    """
+    Thực thi lệnh IoT trực tiếp (biết sẵn device + action)
+    
+    Request JSON:
+    {
+        "device_api_key": "meilin_dev_xxxx",
+        "device_id": "light_living_room",
+        "action": "on",
+        "params": {}  // optional
+    }
+    """
+    try:
+        data = request.get_json()
+        device_key = data.get('device_api_key', '')
+        device_id = data.get('device_id', '')
+        action_name = data.get('action', '')
+        params = data.get('params', {})
+        
+        if not device_key or not device_id or not action_name:
+            return jsonify({
+                "success": False,
+                "error": "Missing required fields"
+            }), 400
+        
+        # Validate device key
+        device_info = esp_device_manager.validate_device_key(device_key)
+        if not device_info:
+            return jsonify({
+                "success": False,
+                "error": "Invalid device key"
+            }), 401
+        
+        telegram_user_id = device_info.get('telegram_user_id')
+        db_user_id = user_manager.get_user_id_by_telegram(str(telegram_user_id))
+        
+        if not db_user_id:
+            return jsonify({
+                "success": False,
+                "error": "User not found"
+            }), 404
+        
+        # Execute action
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                iot_controller.execute_action(
+                    user_id=db_user_id,
+                    device_query=device_id,
+                    action_query=action_name,
+                    params=params,
+                    trigger_source="api",
+                    trigger_message=f"API: {device_id}.{action_name}"
+                )
+            )
+        finally:
+            loop.close()
+        
+        return jsonify({
+            "success": result.status.value == 'success',
+            "response": result.message,
+            "device": result.device_name,
+            "action": result.action_name,
+            "status": result.status.value,
+            "execution_time_ms": result.execution_time_ms
+        }), 200
+        
+    except Exception as e:
+        print(f"[ERROR] IoT execute error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/iot/devices', methods=['GET'])
+def iot_list_devices():
+    """
+    Liệt kê tất cả thiết bị IoT của user
+    
+    Query params: ?device_api_key=meilin_dev_xxxx
+    """
+    try:
+        device_key = request.args.get('device_api_key', '')
+        
+        if not device_key:
+            return jsonify({
+                "success": False,
+                "error": "Missing device_api_key"
+            }), 400
+        
+        # Validate device key
+        device_info = esp_device_manager.validate_device_key(device_key)
+        if not device_info:
+            return jsonify({
+                "success": False,
+                "error": "Invalid device key"
+            }), 401
+        
+        telegram_user_id = device_info.get('telegram_user_id')
+        db_user_id = user_manager.get_user_id_by_telegram(str(telegram_user_id))
+        
+        if not db_user_id:
+            return jsonify({
+                "success": False,
+                "error": "User not found"
+            }), 404
+        
+        # Get devices summary
+        summary = iot_controller.get_user_devices_summary(db_user_id)
+        
+        return jsonify({
+            "success": True,
+            "total_devices": summary['total_devices'],
+            "devices": summary['devices']
+        }), 200
+        
+    except Exception as e:
+        print(f"[ERROR] IoT list devices error: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
         }), 500
 
 # ============================================================================

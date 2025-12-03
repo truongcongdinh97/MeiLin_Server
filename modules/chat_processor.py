@@ -5,6 +5,7 @@ import json
 import re
 import traceback
 import os
+import asyncio
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 from modules.chat_history_db import ChatHistoryDB
@@ -14,6 +15,7 @@ from modules.persona_loader import get_persona_loader
 from modules.viewer_profile_db import get_viewer_profile_db
 from modules.command_executor import get_command_executor
 from modules.response_cache import get_response_cache, get_response_tracker
+from modules.iot_device_controller import get_iot_controller, get_iot_tools_for_llm
 
 # Load biến môi trường từ file .env
 load_dotenv()
@@ -79,8 +81,11 @@ class ChatProcessor:
         # Viewer Profile Database (persistent storage theo user_id)
         self.viewer_db = get_viewer_profile_db()
         
-        # Command Executor (IoT control)
+        # Command Executor (IoT control - legacy static config)
         self.command_executor = get_command_executor()
+        
+        # IoT Device Controller (multi-user dynamic devices)
+        self.iot_controller = get_iot_controller()
         
         # Response Cache (cached audio responses)
         self.response_cache = get_response_cache()
@@ -401,10 +406,17 @@ class ChatProcessor:
         
         return response
 
-    def process_message(self, user_message, username="Người xem", user_id=None, gender=None, job=None, preferences=None):
+    def process_message(self, user_message, username="Người xem", user_id=None, gender=None, job=None, preferences=None, db_user_id=None):
         """Xử lý tin nhắn, tích hợp RAG và xưng hô cá nhân hóa, gọi Deepseek R1 8B API."""
         try:
             print("⚙️ Đang xử lý tin nhắn...")
+            
+            # 🏠 STEP 0: Kiểm tra lệnh IoT per-user (nếu có db_user_id)
+            if db_user_id:
+                iot_result = self._process_iot_command(user_message, db_user_id)
+                if iot_result:
+                    print(f"🏠 Phát hiện lệnh IoT: {iot_result}")
+                    return iot_result
             
             # 🔧 STEP 1: Kiểm tra lệnh điều khiển thiết bị (wake computer, turn on light, etc.)
             command_result = self.command_executor.process_input(user_message)
@@ -511,3 +523,68 @@ class ChatProcessor:
         self.conversation_history.append({"role": "assistant", "content": ai_response})
         if len(self.conversation_history) > 10:
             self.conversation_history = self.conversation_history[-10:]
+
+    def _process_iot_command(self, user_message: str, db_user_id: int) -> Optional[str]:
+        """
+        Xử lý lệnh điều khiển IoT cho user cụ thể.
+        
+        Args:
+            user_message: Tin nhắn từ user
+            db_user_id: Database user ID
+            
+        Returns:
+            Response string nếu là lệnh IoT, None nếu không
+        """
+        try:
+            # Parse message để tìm device và action
+            device, action, params = self.iot_controller.parse_command(db_user_id, user_message)
+            
+            if device is None or action is None:
+                return None
+            
+            print(f"🏠 IoT: Device={device.device_name}, Action={action.action_name}, Params={params}")
+            
+            # Execute action (sync wrapper for async)
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(
+                    self.iot_controller.execute_action(
+                        user_id=db_user_id,
+                        device=device,
+                        action=action,
+                        params=params,
+                        trigger_source="voice",
+                        trigger_message=user_message
+                    )
+                )
+            finally:
+                loop.close()
+            
+            # Build MeiLin-style response
+            if result.status.value == 'success':
+                response = f"Dạ, {result.message} ạ! 😊"
+            elif result.status.value == 'timeout':
+                response = f"Ối, thiết bị {device.device_name} không phản hồi rồi. Anh/Chị kiểm tra lại giúp em nhé!"
+            else:
+                response = f"Dạ, em không thể {action.action_name} {device.device_name} được. {result.message}"
+            
+            return response
+            
+        except Exception as e:
+            print(f"⚠️ IoT Error: {e}")
+            return None
+    
+    def get_iot_tools(self, db_user_id: int) -> list:
+        """
+        Lấy danh sách tools IoT cho function calling.
+        
+        Sử dụng khi cần gọi LLM với function calling để điều khiển thiết bị.
+        
+        Args:
+            db_user_id: Database user ID
+            
+        Returns:
+            List of tool definitions for LLM
+        """
+        return get_iot_tools_for_llm(db_user_id, self.iot_controller)

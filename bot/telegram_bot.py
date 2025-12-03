@@ -32,6 +32,7 @@ from modules.multi_user.user_manager import get_user_manager
 from modules.multi_user.api_key_manager import get_api_key_manager
 from modules.personal_knowledge_manager import get_knowledge_manager
 from modules.esp_device_manager import get_esp_device_manager
+from modules.iot_device_controller import get_iot_controller, IoTDeviceController
 
 # Configure logging
 logging.basicConfig(
@@ -82,6 +83,22 @@ class State(Enum):
     ESP_SELECT_DEVICE = auto()
     ESP_DEVICE_ACTIONS = auto()
     ESP_CONFIRM_DELETE = auto()
+    
+    # IoT Smart Home Control (NEW)
+    IOT_MENU = auto()
+    IOT_ADD_DEVICE = auto()
+    IOT_ADD_DEVICE_NAME = auto()
+    IOT_ADD_DEVICE_TYPE = auto()
+    IOT_ADD_DEVICE_CATEGORY = auto()
+    IOT_ADD_ACTION = auto()
+    IOT_ADD_ACTION_URL = auto()
+    IOT_ADD_ACTION_METHOD = auto()
+    IOT_ADD_CONTACT = auto()
+    IOT_UPLOAD_JSON = auto()
+    IOT_VIEW_DEVICES = auto()
+    IOT_MANAGE_DEVICE = auto()
+    IOT_CONFIRM_DELETE = auto()
+    IOT_TEST_DEVICE = auto()
 
 
 # ============================================================
@@ -200,6 +217,7 @@ class InteractiveConfigBot:
         self.api_key_manager = get_api_key_manager()
         self.knowledge_manager = get_knowledge_manager()
         self.esp_device_manager = get_esp_device_manager()
+        self.iot_controller = get_iot_controller()
         
         # Session data (temporary, in-memory)
         # Key: telegram_user_id (int), Value: session dict
@@ -370,6 +388,11 @@ Bạn có thể đổi sang LLM/TTS khác nếu muốn chất lượng tốt hơ
         # ESP Devices - Hành động chính
         keyboard.append([
             InlineKeyboardButton("📱 Đăng ký ESP Device", callback_data='menu_esp')
+        ])
+        
+        # IoT Smart Home Control - NEW
+        keyboard.append([
+            InlineKeyboardButton("🏠 Điều khiển Smart Home", callback_data='menu_iot')
         ])
         
         # Optional: Đổi LLM/TTS (tùy chọn, không bắt buộc)
@@ -2078,6 +2101,459 @@ Nhập Device ID:
         return State.ESP_VIEW_DEVICES.value
     
     # ============================================================
+    # IOT SMART HOME CONTROL
+    # ============================================================
+    async def menu_iot(self, update: Update, context: CallbackContext) -> int:
+        """Show IoT Smart Home control menu"""
+        query = update.callback_query
+        await query.answer()
+        
+        tg_user_id = update.effective_user.id
+        db_user_id = self.get_or_create_db_user(update)
+        
+        # Get IoT devices summary
+        summary = self.iot_controller.get_user_devices_summary(db_user_id)
+        
+        msg = """
+🏠 **Điều khiển Smart Home**
+
+Cấu hình thiết bị IoT để MeiLin điều khiển:
+• 💡 Đèn, công tắc (ESP32/Sonoff)
+• 💻 Máy tính (Wake-on-LAN/Webhook)
+• 📱 Gửi tin nhắn (Telegram/Webhook)
+• 🌡️ Điều hòa, quạt, thiết bị khác
+
+"""
+        
+        if summary['total_devices'] > 0:
+            msg += f"**📋 Thiết bị của bạn ({summary['total_devices']}):**\n"
+            for dev in summary['devices'][:5]:  # Show max 5
+                category_emoji = {
+                    'light': '💡', 'switch': '🔌', 'computer': '💻',
+                    'ac': '❄️', 'fan': '🌀', 'tv': '📺',
+                    'messaging': '💬', 'other': '📦'
+                }.get(dev['category'], '📦')
+                msg += f"{category_emoji} **{dev['name']}**\n"
+                msg += f"   └ Actions: {', '.join(dev['actions'][:3]) or 'Chưa có'}\n"
+            
+            if summary['total_devices'] > 5:
+                msg += f"\n_...và {summary['total_devices'] - 5} thiết bị khác_\n"
+        else:
+            msg += "_Bạn chưa cấu hình thiết bị nào._\n"
+        
+        msg += """
+
+💡 **Cách thêm thiết bị:**
+1. Upload file JSON cấu hình
+2. Hoặc thêm thủ công từng thiết bị
+"""
+        
+        keyboard = [
+            [InlineKeyboardButton("📤 Upload JSON Config", callback_data='iot_upload_json')],
+            [InlineKeyboardButton("➕ Thêm thiết bị thủ công", callback_data='iot_add_device')],
+        ]
+        
+        if summary['total_devices'] > 0:
+            keyboard.append([
+                InlineKeyboardButton("📋 Xem thiết bị", callback_data='iot_view_devices'),
+                InlineKeyboardButton("🧪 Test điều khiển", callback_data='iot_test_device')
+            ])
+        
+        keyboard.append([
+            InlineKeyboardButton("📥 Tải template JSON", callback_data='iot_download_template')
+        ])
+        keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='back_main')])
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.IOT_MENU.value
+    
+    async def iot_download_template(self, update: Update, context: CallbackContext) -> int:
+        """Send IoT config JSON template"""
+        query = update.callback_query
+        await query.answer()
+        
+        template = {
+            "devices": [
+                {
+                    "id": "light_living_room",
+                    "name": "đèn phòng khách",
+                    "aliases": ["đèn A", "living room light"],
+                    "type": "esp32_relay",
+                    "category": "light",
+                    "actions": {
+                        "on": {
+                            "method": "GET",
+                            "url": "http://192.168.1.100/relay/1/on",
+                            "aliases": ["bật", "mở", "turn on"],
+                            "success_message": "Đã bật đèn phòng khách"
+                        },
+                        "off": {
+                            "method": "GET",
+                            "url": "http://192.168.1.100/relay/1/off",
+                            "aliases": ["tắt", "đóng", "turn off"],
+                            "success_message": "Đã tắt đèn phòng khách"
+                        }
+                    }
+                },
+                {
+                    "id": "computer_main",
+                    "name": "máy tính",
+                    "aliases": ["PC", "computer", "laptop"],
+                    "type": "webhook",
+                    "category": "computer",
+                    "actions": {
+                        "on": {
+                            "method": "POST",
+                            "url": "https://n8n.example.com/webhook/wake-pc",
+                            "headers": {"Authorization": "Bearer YOUR_TOKEN"},
+                            "aliases": ["bật", "mở", "wake up"],
+                            "success_message": "Đang khởi động máy tính..."
+                        },
+                        "off": {
+                            "method": "POST",
+                            "url": "https://n8n.example.com/webhook/shutdown-pc",
+                            "aliases": ["tắt", "shutdown"],
+                            "success_message": "Đang tắt máy tính..."
+                        }
+                    }
+                },
+                {
+                    "id": "messaging_telegram",
+                    "name": "Gửi tin nhắn",
+                    "type": "messaging",
+                    "category": "messaging",
+                    "actions": {
+                        "send_message": {
+                            "method": "POST",
+                            "url": "https://n8n.example.com/webhook/send-message",
+                            "aliases": ["gửi", "nhắn", "send"]
+                        }
+                    },
+                    "contacts": {
+                        "Anh A": {
+                            "platform": "telegram",
+                            "platform_id": "123456789",
+                            "webhook_url": "https://n8n.example.com/webhook/send-telegram",
+                            "webhook_body": {"chat_id": "123456789", "message": "{{message}}"},
+                            "aliases": ["A", "anh ấy"]
+                        },
+                        "Mẹ": {
+                            "platform": "telegram",
+                            "platform_id": "987654321",
+                            "webhook_url": "https://n8n.example.com/webhook/send-telegram",
+                            "webhook_body": {"chat_id": "987654321", "message": "{{message}}"},
+                            "aliases": ["mẹ", "mom", "má"]
+                        }
+                    }
+                }
+            ]
+        }
+        
+        # Send as file
+        import io
+        json_bytes = json.dumps(template, indent=2, ensure_ascii=False).encode('utf-8')
+        file = io.BytesIO(json_bytes)
+        file.name = "iot_devices_template.json"
+        
+        await context.bot.send_document(
+            chat_id=update.effective_chat.id,
+            document=file,
+            filename="iot_devices_template.json",
+            caption="""📥 **Template cấu hình IoT**
+
+**Hướng dẫn:**
+1. Download file này
+2. Sửa theo thiết bị của bạn
+3. Upload lại để MeiLin học
+
+**Các loại thiết bị:**
+• `esp32_relay` - ESP32 điều khiển relay
+• `webhook` - Gọi webhook (n8n, HA, etc.)
+• `messaging` - Gửi tin nhắn
+
+**Placeholder:**
+• `{{message}}` - Nội dung tin nhắn
+• `{{device}}` - Tên thiết bị
+""",
+            parse_mode='Markdown'
+        )
+        
+        return State.IOT_MENU.value
+    
+    async def iot_upload_json_prompt(self, update: Update, context: CallbackContext) -> int:
+        """Prompt user to upload JSON config"""
+        query = update.callback_query
+        await query.answer()
+        
+        msg = """
+📤 **Upload cấu hình IoT**
+
+Gửi file JSON chứa cấu hình thiết bị của bạn.
+
+💡 **Lưu ý:**
+• File phải có định dạng `.json`
+• Xem template mẫu để biết cấu trúc
+• Thiết bị mới sẽ được thêm vào danh sách hiện có
+• Thiết bị trùng ID sẽ được cập nhật
+
+📥 Gửi file JSON của bạn:
+"""
+        
+        keyboard = [
+            [InlineKeyboardButton("📥 Tải template", callback_data='iot_download_template')],
+            [InlineKeyboardButton("🔙 Quay lại", callback_data='menu_iot')]
+        ]
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.IOT_UPLOAD_JSON.value
+    
+    async def iot_handle_json_upload(self, update: Update, context: CallbackContext) -> int:
+        """Handle uploaded JSON config file"""
+        tg_user_id = update.effective_user.id
+        db_user_id = self.get_or_create_db_user(update)
+        
+        document = update.message.document
+        
+        # Validate file
+        if not document.file_name.endswith('.json'):
+            await update.message.reply_text(
+                "❌ Vui lòng gửi file có đuôi `.json`",
+                parse_mode='Markdown'
+            )
+            return State.IOT_UPLOAD_JSON.value
+        
+        try:
+            # Download file
+            file = await document.get_file()
+            file_bytes = await file.download_as_bytearray()
+            
+            # Parse JSON
+            json_config = json.loads(file_bytes.decode('utf-8'))
+            
+            # Import devices
+            result = self.iot_controller.import_devices_from_json(db_user_id, json_config)
+            
+            # Build result message
+            msg = f"""
+📤 **Kết quả import:**
+
+✅ **Thành công:** {len(result['success'])} thiết bị
+"""
+            if result['success']:
+                for dev_id in result['success'][:5]:
+                    msg += f"  • {dev_id}\n"
+                if len(result['success']) > 5:
+                    msg += f"  • _...và {len(result['success']) - 5} thiết bị khác_\n"
+            
+            if result['failed']:
+                msg += f"\n❌ **Thất bại:** {len(result['failed'])} thiết bị\n"
+                for fail in result['failed'][:3]:
+                    msg += f"  • {fail['device']}: {fail['error']}\n"
+            
+            msg += """
+
+💡 Giờ bạn có thể yêu cầu MeiLin điều khiển thiết bị!
+Ví dụ: "MeiLin ơi, bật đèn phòng khách"
+"""
+            
+            keyboard = [
+                [InlineKeyboardButton("📋 Xem thiết bị", callback_data='iot_view_devices')],
+                [InlineKeyboardButton("🔙 Menu IoT", callback_data='menu_iot')]
+            ]
+            
+            await update.message.reply_text(
+                msg,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            
+        except json.JSONDecodeError as e:
+            await update.message.reply_text(
+                f"❌ File JSON không hợp lệ:\n`{str(e)}`\n\n"
+                "Vui lòng kiểm tra lại định dạng file.",
+                parse_mode='Markdown'
+            )
+            return State.IOT_UPLOAD_JSON.value
+        except Exception as e:
+            logger.error(f"Error importing IoT config: {e}")
+            await update.message.reply_text(
+                f"❌ Có lỗi xảy ra: {str(e)}\n\n"
+                "Vui lòng thử lại sau."
+            )
+        
+        return State.IOT_MENU.value
+    
+    async def iot_view_devices(self, update: Update, context: CallbackContext) -> int:
+        """View all IoT devices"""
+        query = update.callback_query
+        await query.answer()
+        
+        db_user_id = self.get_or_create_db_user(update)
+        devices = self.iot_controller.load_user_devices(db_user_id)
+        
+        if not devices:
+            await query.edit_message_text(
+                "📋 Bạn chưa có thiết bị IoT nào.\n\n"
+                "Sử dụng nút bên dưới để thêm thiết bị.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📤 Upload JSON", callback_data='iot_upload_json')],
+                    [InlineKeyboardButton("🔙 Quay lại", callback_data='menu_iot')]
+                ])
+            )
+            return State.IOT_MENU.value
+        
+        msg = f"📋 **Thiết bị IoT của bạn ({len(devices)}):**\n\n"
+        
+        keyboard = []
+        for dev in devices:
+            category_emoji = {
+                'light': '💡', 'switch': '🔌', 'computer': '💻',
+                'ac': '❄️', 'fan': '🌀', 'tv': '📺',
+                'messaging': '💬', 'other': '📦'
+            }.get(dev.device_category.value, '📦')
+            
+            msg += f"{category_emoji} **{dev.device_name}**\n"
+            msg += f"├─ ID: `{dev.device_id}`\n"
+            msg += f"├─ Type: {dev.device_type.value}\n"
+            msg += f"├─ Actions: {', '.join(dev.actions.keys()) or 'Không có'}\n"
+            
+            if dev.contacts:
+                msg += f"└─ Contacts: {', '.join(dev.contacts.keys())}\n"
+            else:
+                msg += f"└─ Aliases: {', '.join(dev.device_aliases[:3]) or 'Không có'}\n"
+            msg += "\n"
+            
+            # Add manage button
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"⚙️ {dev.device_name[:20]}",
+                    callback_data=f"iot_manage_{dev.device_id}"
+                )
+            ])
+        
+        keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='menu_iot')])
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.IOT_VIEW_DEVICES.value
+    
+    async def iot_test_device(self, update: Update, context: CallbackContext) -> int:
+        """Test IoT device control"""
+        query = update.callback_query
+        await query.answer()
+        
+        db_user_id = self.get_or_create_db_user(update)
+        devices = self.iot_controller.load_user_devices(db_user_id)
+        
+        if not devices:
+            await query.edit_message_text(
+                "❌ Bạn chưa có thiết bị nào để test.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 Quay lại", callback_data='menu_iot')]
+                ])
+            )
+            return State.IOT_MENU.value
+        
+        msg = """
+🧪 **Test điều khiển thiết bị**
+
+Chọn thiết bị để test:
+"""
+        
+        keyboard = []
+        for dev in devices:
+            for action_name in list(dev.actions.keys())[:2]:  # Max 2 actions per device
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"{dev.device_name} → {action_name}",
+                        callback_data=f"iot_exec_{dev.device_id}_{action_name}"
+                    )
+                ])
+        
+        keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='menu_iot')])
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.IOT_TEST_DEVICE.value
+    
+    async def iot_execute_test(self, update: Update, context: CallbackContext) -> int:
+        """Execute test action on device"""
+        query = update.callback_query
+        await query.answer("⏳ Đang thực hiện...")
+        
+        db_user_id = self.get_or_create_db_user(update)
+        
+        # Parse callback data: iot_exec_{device_id}_{action_name}
+        parts = query.data.split('_')
+        if len(parts) < 4:
+            await query.edit_message_text("❌ Lỗi dữ liệu")
+            return State.IOT_MENU.value
+        
+        device_id = parts[2]
+        action_name = '_'.join(parts[3:])  # Action name may contain underscores
+        
+        # Execute action
+        result = await self.iot_controller.execute_action(
+            user_id=db_user_id,
+            device_query=device_id,
+            action_query=action_name,
+            trigger_source="telegram",
+            trigger_message=f"Test: {device_id} {action_name}"
+        )
+        
+        # Build result message
+        if result.status.value == 'success':
+            msg = f"""
+✅ **Thành công!**
+
+📱 **Thiết bị:** {result.device_name}
+⚡ **Hành động:** {result.action_name}
+📝 **Kết quả:** {result.message}
+⏱️ **Thời gian:** {result.execution_time_ms}ms
+"""
+        else:
+            msg = f"""
+❌ **Thất bại!**
+
+📱 **Thiết bị:** {result.device_name}
+⚡ **Hành động:** {result.action_name}
+📝 **Lỗi:** {result.message}
+"""
+            if result.error_message:
+                msg += f"🔍 **Chi tiết:** {result.error_message}\n"
+        
+        keyboard = [
+            [InlineKeyboardButton("🔄 Test lại", callback_data='iot_test_device')],
+            [InlineKeyboardButton("🔙 Menu IoT", callback_data='menu_iot')]
+        ]
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.IOT_MENU.value
+    
+    # ============================================================
     # BUILD APPLICATION
     # ============================================================
     def build_application(self) -> Application:
@@ -2097,6 +2573,7 @@ Nhập Device ID:
                     CallbackQueryHandler(self.menu_personality, pattern='^menu_personality$'),
                     CallbackQueryHandler(self.menu_knowledge, pattern='^menu_knowledge$'),
                     CallbackQueryHandler(self.menu_esp, pattern='^menu_esp$'),
+                    CallbackQueryHandler(self.menu_iot, pattern='^menu_iot$'),
                     CallbackQueryHandler(self.view_config, pattern='^view_config$'),
                     CallbackQueryHandler(self.start_chat, pattern='^start_chat$'),
                     CallbackQueryHandler(self.show_help, pattern='^help$'),
@@ -2189,6 +2666,28 @@ Nhập Device ID:
                 State.ESP_VIEW_DEVICES.value: [
                     CallbackQueryHandler(self.menu_esp, pattern='^menu_esp$'),
                     CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
+                ],
+                # IoT Smart Home Control states
+                State.IOT_MENU.value: [
+                    CallbackQueryHandler(self.iot_upload_json_prompt, pattern='^iot_upload_json$'),
+                    CallbackQueryHandler(self.iot_download_template, pattern='^iot_download_template$'),
+                    CallbackQueryHandler(self.iot_view_devices, pattern='^iot_view_devices$'),
+                    CallbackQueryHandler(self.iot_test_device, pattern='^iot_test_device$'),
+                    CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
+                ],
+                State.IOT_UPLOAD_JSON.value: [
+                    MessageHandler(filters.Document.ALL, self.iot_handle_json_upload),
+                    CallbackQueryHandler(self.iot_download_template, pattern='^iot_download_template$'),
+                    CallbackQueryHandler(self.menu_iot, pattern='^menu_iot$'),
+                ],
+                State.IOT_VIEW_DEVICES.value: [
+                    CallbackQueryHandler(self.menu_iot, pattern='^menu_iot$'),
+                    CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
+                ],
+                State.IOT_TEST_DEVICE.value: [
+                    CallbackQueryHandler(self.iot_execute_test, pattern='^iot_exec_'),
+                    CallbackQueryHandler(self.iot_test_device, pattern='^iot_test_device$'),
+                    CallbackQueryHandler(self.menu_iot, pattern='^menu_iot$'),
                 ],
             },
             fallbacks=[
