@@ -8,6 +8,9 @@ from modules.rag_system import RAGSystem
 from modules.provider_manager import get_provider_manager
 from modules.providers.factory import ProviderFactory
 from modules.ota_manager import get_ota_manager
+from modules.esp_device_manager import get_esp_device_manager
+from modules.user_manager import get_user_manager
+from modules.api_key_manager import get_api_key_manager
 import logging
 
 app = Flask(__name__)
@@ -20,6 +23,9 @@ provider_manager = get_provider_manager()
 tts_config = provider_manager.get_tts_config()
 tts_engine = ProviderFactory.create_tts_provider(tts_config['provider'], tts_config)
 ota_manager = get_ota_manager()
+esp_device_manager = get_esp_device_manager()
+user_manager = get_user_manager()
+api_key_manager = get_api_key_manager()
 print(f"✅ MeiLin API Server đã sẵn sàng! (TTS: {tts_config['provider']})")
 
 # Tắt log Flask mặc định (chỉ hiển thị error)
@@ -247,6 +253,251 @@ def command():
         return jsonify({
             "error": str(e),
             "status": "error"
+        }), 500
+
+# ============================================================================
+# ESP32 Hybrid Mode - Sử dụng MeiLin RAG + XiaoZhi LLM (Free)
+# ============================================================================
+
+@app.route('/esp/validate', methods=['POST'])
+def esp_validate_device():
+    """
+    Validate ESP device API key và trả về thông tin device
+    Request JSON:
+    {
+        "device_api_key": "meilin_dev_xxxx"
+    }
+    Response: Device info + owner's personality settings
+    """
+    try:
+        data = request.get_json()
+        device_key = data.get('device_api_key', '')
+        
+        if not device_key:
+            return jsonify({
+                "valid": False,
+                "error": "Missing device_api_key"
+            }), 400
+        
+        # Validate device
+        result = esp_device_manager.validate_device_key(device_key)
+        
+        if not result['valid']:
+            return jsonify(result), 401
+        
+        # Update device seen
+        esp_device_manager.update_device_seen(result['device_id'])
+        
+        # Get owner's personality settings
+        telegram_user_id = result['telegram_user_id']
+        user_profile = user_manager.get_user(str(telegram_user_id))
+        
+        personality = {}
+        if user_profile:
+            personality = {
+                'name': user_profile.get('personality', {}).get('name', 'MeiLin'),
+                'wake_word': user_profile.get('personality', {}).get('wake_word', 'Hi MeiLin'),
+                'speaking_style': user_profile.get('personality', {}).get('speaking_style', 'friendly'),
+                'language': user_profile.get('personality', {}).get('language', 'vi')
+            }
+        
+        return jsonify({
+            "valid": True,
+            "device_id": result['device_id'],
+            "device_name": result['device_name'],
+            "personality": personality,
+            "status": "success"
+        }), 200
+        
+    except Exception as e:
+        print(f"[ERROR] ESP validate error: {e}")
+        return jsonify({
+            "valid": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/esp/rag', methods=['POST'])
+def esp_query_rag():
+    """
+    ESP truy vấn MeiLin Knowledge Base (RAG)
+    Dùng cho Hybrid Mode: ESP sử dụng MeiLin RAG + XiaoZhi LLM
+    
+    Request JSON:
+    {
+        "device_api_key": "meilin_dev_xxxx",
+        "query": "MeiLin thích ăn gì?"
+    }
+    Response:
+    {
+        "context": "MeiLin thích ăn phở và bánh mì...",
+        "sources": ["Personal Knowledge", "User Upload"],
+        "prompt_template": "Bạn là MeiLin, một AI assistant..."
+    }
+    """
+    try:
+        data = request.get_json()
+        device_key = data.get('device_api_key', '')
+        query = data.get('query', '').strip()
+        
+        if not device_key:
+            return jsonify({
+                "status": "error",
+                "error": "Missing device_api_key"
+            }), 400
+        
+        if not query:
+            return jsonify({
+                "status": "error",
+                "error": "Missing query"
+            }), 400
+        
+        # Validate device
+        device_info = esp_device_manager.validate_device_key(device_key)
+        
+        if not device_info['valid']:
+            return jsonify({
+                "status": "error",
+                "error": device_info.get('error', 'Invalid device key')
+            }), 401
+        
+        # Update device activity
+        esp_device_manager.update_device_seen(device_info['device_id'])
+        
+        # Get owner info for personalized RAG
+        telegram_user_id = device_info['telegram_user_id']
+        user_id_str = str(telegram_user_id)
+        
+        # Query RAG for context
+        context = rag_system.get_context(query=query, n_results=3)
+        
+        # Get personality for prompt template
+        user_profile = user_manager.get_user(user_id_str)
+        personality = {}
+        if user_profile:
+            personality = user_profile.get('personality', {})
+        
+        # Build system prompt suggestion
+        name = personality.get('name', 'MeiLin')
+        style = personality.get('speaking_style', 'friendly')
+        lang = personality.get('language', 'vi')
+        
+        system_prompt = f"""Bạn là {name}, một AI assistant thân thiện.
+Phong cách: {style}
+Ngôn ngữ: {lang}
+
+Kiến thức cá nhân:
+{context}
+
+Hãy trả lời câu hỏi của người dùng dựa trên kiến thức trên."""
+        
+        print(f"[ESP/RAG] {device_info['device_name']}: {query[:50]}...")
+        
+        return jsonify({
+            "status": "success",
+            "context": context,
+            "sources": ["MeiLin Knowledge Base"],
+            "system_prompt": system_prompt,
+            "personality": {
+                "name": name,
+                "style": style,
+                "language": lang
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"[ERROR] ESP RAG error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
+
+@app.route('/esp/chat', methods=['POST'])
+def esp_chat_with_keys():
+    """
+    ESP chat sử dụng API keys của owner (Full Mode)
+    Dùng khi user muốn ESP dùng API keys của họ để chat
+    
+    Request JSON:
+    {
+        "device_api_key": "meilin_dev_xxxx",
+        "message": "Xin chào MeiLin"
+    }
+    Response:
+    {
+        "response": "Xin chào! Em là MeiLin...",
+        "status": "success"
+    }
+    """
+    try:
+        data = request.get_json()
+        device_key = data.get('device_api_key', '')
+        message = data.get('message', '').strip()
+        
+        if not device_key:
+            return jsonify({
+                "status": "error",
+                "error": "Missing device_api_key"
+            }), 400
+        
+        if not message:
+            return jsonify({
+                "status": "error",
+                "error": "Missing message"
+            }), 400
+        
+        # Validate device
+        device_info = esp_device_manager.validate_device_key(device_key)
+        
+        if not device_info['valid']:
+            return jsonify({
+                "status": "error",
+                "error": device_info.get('error', 'Invalid device key')
+            }), 401
+        
+        # Update device activity
+        esp_device_manager.update_device_seen(device_info['device_id'])
+        
+        # Get owner's API keys
+        telegram_user_id = device_info['telegram_user_id']
+        user_id_str = str(telegram_user_id)
+        
+        # Check if user has configured LLM
+        llm_config = api_key_manager.get_api_key(user_id_str, 'llm')
+        
+        if not llm_config or not llm_config.get('api_key'):
+            return jsonify({
+                "status": "error",
+                "error": "Owner has not configured LLM API key. Please configure via Telegram bot.",
+                "needs_config": True
+            }), 403
+        
+        # Create personalized chat processor for this user
+        print(f"[ESP/Chat] {device_info['device_name']}: {message[:50]}...")
+        
+        # Use the chat processor with user context
+        response_text = chat_processor.process_message(
+            user_message=message,
+            username=device_info['device_name'],
+            user_id=user_id_str
+        )
+        
+        print(f"[MeiLin] → {device_info['device_name']}: {response_text[:80]}...")
+        
+        return jsonify({
+            "status": "success",
+            "response": response_text,
+            "device": device_info['device_name']
+        }), 200
+        
+    except Exception as e:
+        print(f"[ERROR] ESP chat error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "error": str(e)
         }), 500
 
 # ============================================================================
@@ -551,14 +802,18 @@ if __name__ == '__main__':
     print("  - POST /tts             : Text-to-Speech")
     print("  - GET  /user/info       : Lấy thông tin user")
     print("  - GET  /api/ota/*       : OTA updates")
+    print("\n📱 ESP32 Hybrid Mode Endpoints:")
+    print("  - POST /esp/validate    : Validate device API key")
+    print("  - POST /esp/rag         : Query RAG với device key")
+    print("  - POST /esp/chat        : Chat sử dụng owner's API keys")
     print("\n🌐 Public Endpoints (read-only, API key required):")
     print("  - POST /public/register     : Đăng ký device, nhận API key")
     print("  - POST /public/rag/query    : Query knowledge base")
     print("  - GET  /public/stats        : Xem thống kê sử dụng")
-    print("\n🔑 Để sử dụng Public API:")
-    print("  1. POST /public/register với device_id")
-    print("  2. Nhận api_key: meilin_pk_...")
-    print("  3. Thêm header: X-API-Key: meilin_pk_...")
+    print("\n🔑 ESP32 Usage Modes:")
+    print("  1. XiaoZhi Pure: ESP → XiaoZhi Cloud (free)")
+    print("  2. Hybrid Mode : ESP → MeiLin RAG + XiaoZhi LLM (free)")
+    print("  3. Full Mode   : ESP → MeiLin Server (needs API keys)")
     print("\n🌐 Server đang chạy tại:")
     print("  - Local:   http://127.0.0.1:5000")
     print("  - Network: http://<your_ip>:5000")

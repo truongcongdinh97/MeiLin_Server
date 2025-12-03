@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from modules.multi_user.user_manager import get_user_manager
 from modules.multi_user.api_key_manager import get_api_key_manager
 from modules.personal_knowledge_manager import get_knowledge_manager
+from modules.esp_device_manager import get_esp_device_manager
 
 # Configure logging
 logging.basicConfig(
@@ -72,6 +73,15 @@ class State(Enum):
     KNOWLEDGE_MENU = auto()
     KNOWLEDGE_UPLOAD = auto()
     KNOWLEDGE_CONFIRM_DELETE = auto()
+    
+    # ESP Device Management (NEW)
+    ESP_MENU = auto()
+    ESP_REGISTER_ID = auto()
+    ESP_REGISTER_NAME = auto()
+    ESP_VIEW_DEVICES = auto()
+    ESP_SELECT_DEVICE = auto()
+    ESP_DEVICE_ACTIONS = auto()
+    ESP_CONFIRM_DELETE = auto()
 
 
 # ============================================================
@@ -189,6 +199,7 @@ class InteractiveConfigBot:
         self.user_manager = get_user_manager()
         self.api_key_manager = get_api_key_manager()
         self.knowledge_manager = get_knowledge_manager()
+        self.esp_device_manager = get_esp_device_manager()
         
         # Session data (temporary, in-memory)
         # Key: telegram_user_id (int), Value: session dict
@@ -318,51 +329,58 @@ class InteractiveConfigBot:
         knowledge_summary = self.knowledge_manager.get_knowledge_summary(str(tg_user.id))
         has_knowledge = knowledge_summary.get('has_knowledge', False)
         
-        status_emoji = "✅" if summary.get('config_complete') else "🔧"
+        # Get provider names if configured
+        llm_provider_name = self._get_provider_name(summary, 'llm')
+        tts_provider_name = self._get_provider_name(summary, 'tts')
         
         msg = f"""
 🌸 **Xin chào {name}!**
 
 Tôi là **MeiLin** - trợ lý AI cá nhân của bạn.
 
-{status_emoji} **Trạng thái cấu hình:**
-├─ 🤖 LLM (AI Chat): {"✅ Đã thiết lập" if has_llm else "❌ Chưa thiết lập"}
-├─ 🎙️ TTS (Giọng nói): {"✅ Đã thiết lập" if has_tts else "⚪ Tùy chọn"}
-├─ 😊 Personality: {"✅ Đã thiết lập" if has_personality else "⚪ Tùy chọn"}
-└─ 📚 Knowledge Base: {"✅ " + str(knowledge_summary.get('items_count', 0)) + " mục" if has_knowledge else "⚪ Chưa có"}
+📊 **Cấu hình hiện tại:**
+├─ 🤖 LLM: {"✅ " + llm_provider_name if has_llm else "🆓 XiaoZhi (miễn phí)"}
+├─ 🎙️ TTS: {"✅ " + tts_provider_name if has_tts else "🆓 XiaoZhi (miễn phí)"}
+├─ 😊 Personality: {"✅ Tùy chỉnh" if has_personality else "📌 Mặc định"}
+└─ 📚 Knowledge: {"✅ " + str(knowledge_summary.get('items_count', 0)) + " mục" if has_knowledge else "📌 Chưa có"}
 
 🔑 **ID của bạn:** `{tg_user.id}`
-_(Server nhận diện bạn qua ID này)_
 
-Chọn một tùy chọn bên dưới để bắt đầu:
+💡 **Mặc định:** ESP dùng XiaoZhi Cloud *miễn phí*.
+Bạn có thể đổi sang LLM/TTS khác nếu muốn chất lượng tốt hơn.
 """
         return msg
     
+    def _get_provider_name(self, summary: Dict, provider_type: str) -> str:
+        """Get provider name from config"""
+        for c in summary.get('api_configs', []):
+            if c.get('provider_type') == provider_type:
+                provider = c.get('provider', 'unknown')
+                if provider_type == 'llm':
+                    return LLM_PROVIDERS.get(provider, {}).get('name', provider.title())
+                else:
+                    return TTS_PROVIDERS.get(provider, {}).get('name', provider.title())
+        return "Chưa cấu hình"
+    
     def _build_main_menu_keyboard(self, summary: Dict) -> List[List[InlineKeyboardButton]]:
         """Build main menu keyboard based on user's config status"""
-        has_llm = any(c.get('provider_type') == 'llm' for c in summary.get('api_configs', []))
         
         keyboard = []
         
-        # Primary action based on status
-        if not has_llm:
-            keyboard.append([
-                InlineKeyboardButton("🚀 Bắt đầu thiết lập", callback_data='wizard_start')
-            ])
-        else:
-            keyboard.append([
-                InlineKeyboardButton("💬 Bắt đầu chat", callback_data='start_chat')
-            ])
-        
-        # Configuration options
+        # ESP Devices - Hành động chính
         keyboard.append([
-            InlineKeyboardButton("⚙️ API Keys", callback_data='menu_api'),
-            InlineKeyboardButton("😊 Personality", callback_data='menu_personality')
+            InlineKeyboardButton("📱 Đăng ký ESP Device", callback_data='menu_esp')
         ])
         
-        # Knowledge Base
+        # Optional: Đổi LLM/TTS (tùy chọn, không bắt buộc)
         keyboard.append([
-            InlineKeyboardButton("📚 Knowledge Base", callback_data='menu_knowledge')
+            InlineKeyboardButton("🔄 Đổi LLM/TTS (tùy chọn)", callback_data='wizard_start')
+        ])
+        
+        # Knowledge Base & Personality
+        keyboard.append([
+            InlineKeyboardButton("📚 Knowledge Base", callback_data='menu_knowledge'),
+            InlineKeyboardButton("😊 Personality", callback_data='menu_personality')
         ])
         
         # View/Manage
@@ -374,24 +392,25 @@ Chọn một tùy chọn bên dưới để bắt đầu:
         return keyboard
     
     # ============================================================
-    # SETUP WIZARD
+    # SETUP WIZARD (OPTIONAL - Default is XiaoZhi free)
     # ============================================================
     async def wizard_start(self, update: Update, context: CallbackContext) -> int:
-        """Start the setup wizard - Step 1: Choose LLM"""
+        """Start the setup wizard - OPTIONAL: Change LLM/TTS provider"""
         query = update.callback_query
         await query.answer()
         
         tg_user_id = update.effective_user.id
         self.clear_session_config(tg_user_id)
         
-        step_indicator = self.build_step_indicator(1, 4, "Chọn AI Provider")
-        
-        msg = f"""
-{step_indicator}
+        msg = """
+🔄 **Đổi nhà cung cấp LLM/TTS (Tùy chọn)**
 
-🤖 **Chọn nhà cung cấp AI (LLM)**
+⚠️ **Lưu ý:** Mặc định ESP đã dùng **XiaoZhi Cloud miễn phí**.
+Bạn chỉ cần đổi nếu muốn chất lượng tốt hơn.
 
-Đây là "bộ não" của MeiLin - AI sẽ xử lý và trả lời tin nhắn của bạn.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🤖 **Chọn nhà cung cấp AI (LLM):**
 
 """
         # Add provider descriptions
@@ -407,6 +426,10 @@ Chọn một tùy chọn bên dưới để bắt đầu:
                 )
             ])
         
+        # Add option to keep XiaoZhi (skip)
+        keyboard.append([
+            InlineKeyboardButton("🆓 Giữ XiaoZhi miễn phí", callback_data='back_main')
+        ])
         keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='back_main')])
         
         await query.edit_message_text(
@@ -1039,6 +1062,7 @@ Bạn muốn làm gì tiếp theo?
         
         tg_user_id = update.effective_user.id
         summary = self.knowledge_manager.get_knowledge_summary(str(tg_user_id))
+        quota_summary = self.knowledge_manager.get_quota_summary(str(tg_user_id))
         
         if summary.get('has_knowledge'):
             status = f"""
@@ -1048,15 +1072,19 @@ Bạn muốn làm gì tiếp theo?
 ├─ 📄 Số mục: {summary.get('items_count', 0)}
 ├─ 📁 Danh mục: {', '.join(summary.get('categories', [])[:3])}
 └─ 🕐 Cập nhật: {summary.get('last_updated', 'N/A')}
+
+{quota_summary}
 """
         else:
-            status = """
+            status = f"""
 📚 **Knowledge Base**
 
 ❌ **Chưa có dữ liệu**
 
 Knowledge Base là "bộ nhớ" cá nhân của AI.
 Bạn có thể thêm thông tin về bản thân để AI hiểu bạn hơn.
+
+{quota_summary}
 """
         
         msg = status + """
@@ -1073,7 +1101,10 @@ Bạn có thể thêm thông tin về bản thân để AI hiểu bạn hơn.
         keyboard.append([InlineKeyboardButton("📤 Upload file Knowledge", callback_data='kb_upload')])
         
         if summary.get('has_knowledge'):
-            keyboard.append([InlineKeyboardButton("🗑️ Xóa Knowledge Base", callback_data='kb_delete')])
+            keyboard.append([
+                InlineKeyboardButton("🧹 Dọn dẹp dữ liệu cũ", callback_data='kb_cleanup'),
+                InlineKeyboardButton("🗑️ Xóa tất cả", callback_data='kb_delete')
+            ])
         
         keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='back_main')])
         
@@ -1094,23 +1125,19 @@ Bạn có thể thêm thông tin về bản thân để AI hiểu bạn hơn.
             # Generate template
             buffer = self.knowledge_manager.generate_template(include_samples=True)
             
-            # Send file
+            # Send file (no parse_mode to avoid Markdown issues)
             await context.bot.send_document(
                 chat_id=update.effective_chat.id,
                 document=buffer,
                 filename="MeiLin_Knowledge_Template.xlsx",
-                caption="""📚 **Template Knowledge Base**
-
-**Hướng dẫn sử dụng:**
-
-1️⃣ Mở file Excel
-2️⃣ Xóa các dòng mẫu có dấu [...]
-3️⃣ Điền thông tin của bạn vào cột DOCUMENT_TEXT
-4️⃣ Lưu file
-5️⃣ Gửi file lại cho tôi
-
-💡 Xem sheet "Hướng dẫn" trong file để biết thêm chi tiết!""",
-                parse_mode='Markdown'
+                caption="📚 Template Knowledge Base\n\n"
+                        "Hướng dẫn sử dụng:\n"
+                        "1. Mở file Excel\n"
+                        "2. Xóa các dòng mẫu\n"
+                        "3. Điền thông tin của bạn vào cột DOCUMENT_TEXT\n"
+                        "4. Lưu file\n"
+                        "5. Gửi file lại cho tôi\n\n"
+                        "💡 Xem sheet 'Hướng dẫn' trong file để biết thêm chi tiết!"
             )
             
             # Show upload instruction
@@ -1197,30 +1224,190 @@ Gửi file Excel (.xlsx) chứa thông tin bạn muốn AI nhớ.
         
         return State.KNOWLEDGE_UPLOAD.value
     
-    async def kb_handle_upload(self, update: Update, context: CallbackContext) -> int:
-        """Handle uploaded knowledge file"""
-        if not update.message.document:
-            await update.message.reply_text(
-                "❌ Vui lòng gửi file Excel (.xlsx)",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔙 Quay lại", callback_data='menu_knowledge')]
-                ])
-            )
-            return State.KNOWLEDGE_UPLOAD.value
+    async def kb_handle_upload_anytime(self, update: Update, context: CallbackContext) -> int:
+        """Handle Excel file sent anytime (not just in upload state)"""
+        doc = update.message.document if update.message else None
         
-        doc = update.message.document
+        if not doc:
+            return State.MAIN_MENU.value
+        
+        file_name = doc.file_name or ""
+        mime_type = doc.mime_type or ""
+        ext = file_name.lower().split('.')[-1] if '.' in file_name else ""
         
         # Check file type
-        if not doc.file_name.endswith('.xlsx'):
+        is_excel = (
+            ext in ['xlsx', 'xls'] or
+            'spreadsheet' in mime_type.lower() or
+            'excel' in mime_type.lower()
+        )
+        
+        is_pdf = ext == 'pdf' or 'pdf' in mime_type.lower()
+        is_docx = ext == 'docx' or 'word' in mime_type.lower()
+        is_text = ext in ['txt', 'md', 'csv'] or 'text/plain' in mime_type.lower()
+        
+        if is_excel:
             await update.message.reply_text(
-                "❌ File phải có định dạng .xlsx\n\nVui lòng gửi lại file đúng định dạng.",
+                "📚 Phát hiện file Excel!\n⏳ Đang xử lý như Knowledge Base..."
+            )
+            return await self.kb_handle_upload(update, context)
+        elif is_pdf or is_docx or is_text:
+            format_name = "PDF" if is_pdf else ("Word" if is_docx else "Text")
+            await update.message.reply_text(
+                f"📄 Phát hiện file {format_name}!\n⏳ Đang parse và lưu vào Knowledge Base..."
+            )
+            return await self.kb_handle_document_upload(update, context)
+        else:
+            await update.message.reply_text(
+                f"📎 Đã nhận file: {file_name}\n\n"
+                "💡 **Formats hỗ trợ:**\n"
+                "• Excel (.xlsx, .xls) - Template Knowledge Base\n"
+                "• PDF (.pdf) - Tài liệu PDF\n"
+                "• Word (.docx) - Tài liệu Word\n"
+                "• Text (.txt, .md) - File text\n\n"
+                "Vào 📚 Knowledge Base để upload",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📚 Knowledge Base", callback_data='menu_knowledge')],
+                    [InlineKeyboardButton("🏠 Menu chính", callback_data='back_main')]
+                ]),
+                parse_mode='Markdown'
+            )
+            return State.MAIN_MENU.value
+    
+    async def kb_handle_document_upload(self, update: Update, context: CallbackContext) -> int:
+        """Handle PDF, DOCX, TXT uploads"""
+        doc = update.message.document if update.message else None
+        
+        if not doc:
+            await update.message.reply_text("❌ Không tìm thấy file.")
+            return State.MAIN_MENU.value
+        
+        file_name = doc.file_name or "document"
+        
+        # Check file size (max 10MB for documents)
+        if doc.file_size > 10 * 1024 * 1024:
+            await update.message.reply_text(
+                "❌ File quá lớn (tối đa 10MB)",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("🔙 Quay lại", callback_data='menu_knowledge')]
                 ])
             )
+            return State.MAIN_MENU.value
+        
+        await update.message.reply_text("⏳ Đang xử lý file...")
+        
+        try:
+            # Download file
+            file = await context.bot.get_file(doc.file_id)
+            buffer = io.BytesIO()
+            await file.download_to_memory(buffer)
+            buffer.seek(0)
+            
+            # Process document
+            tg_user_id = update.effective_user.id
+            result = self.knowledge_manager.save_document_knowledge(
+                str(tg_user_id), 
+                buffer, 
+                file_name
+            )
+            
+            if result['success']:
+                quota_info = result.get('quota_info', {})
+                msg = f"""
+✅ **Upload thành công!**
+
+📊 **Kết quả:**
+├─ 📄 Format: {result.get('format', 'Unknown')}
+├─ 📝 Chunks đã lưu: {result['chunks_count']}"""
+                
+                if result.get('chunks_skipped', 0) > 0:
+                    msg += f"\n├─ ⚠️ Bỏ qua: {result['chunks_skipped']} chunks"
+                
+                msg += f"""
+└─ 💾 Quota: {quota_info.get('documents_count', 0)}/{quota_info.get('documents_limit', 100)} ({quota_info.get('usage_percent', 0):.1f}%)
+
+🎉 Nội dung đã được thêm vào Knowledge Base!
+"""
+            else:
+                msg = f"❌ **Lỗi:** {result['message']}"
+            
+            keyboard = [
+                [InlineKeyboardButton("📚 Knowledge Base", callback_data='menu_knowledge')],
+                [InlineKeyboardButton("🏠 Menu chính", callback_data='back_main')]
+            ]
+            
+            await update.message.reply_text(
+                msg,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Error processing document: {e}")
+            await update.message.reply_text(
+                f"❌ Lỗi xử lý file: {str(e)}",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 Quay lại", callback_data='menu_knowledge')]
+                ])
+            )
+        
+        return State.MAIN_MENU.value
+    
+    async def kb_handle_upload(self, update: Update, context: CallbackContext) -> int:
+        """Handle uploaded knowledge file - supports any filename, forwarded messages"""
+        
+        # Check if message has document
+        doc = update.message.document if update.message else None
+        
+        if not doc:
+            await update.message.reply_text(
+                "❌ Không tìm thấy file.\n\n"
+                "**Formats hỗ trợ:**\n"
+                "• Excel (.xlsx) - Template Knowledge Base\n"
+                "• PDF, Word, Text - Tài liệu",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📥 Tải template mẫu", callback_data='kb_download_template')],
+                    [InlineKeyboardButton("🔙 Quay lại", callback_data='menu_knowledge')]
+                ]),
+                parse_mode='Markdown'
+            )
             return State.KNOWLEDGE_UPLOAD.value
         
-        # Check file size (max 5MB)
+        # Check file type by extension OR MIME type
+        file_name = doc.file_name or ""
+        mime_type = doc.mime_type or ""
+        ext = file_name.lower().split('.')[-1] if '.' in file_name else ""
+        
+        is_excel = (
+            ext in ['xlsx', 'xls'] or
+            'spreadsheet' in mime_type.lower() or
+            'excel' in mime_type.lower()
+        )
+        
+        is_document = ext in ['pdf', 'docx', 'txt', 'md'] or any(
+            t in mime_type.lower() for t in ['pdf', 'word', 'text/plain']
+        )
+        
+        # Route to document handler if not Excel
+        if not is_excel and is_document:
+            return await self.kb_handle_document_upload(update, context)
+        
+        if not is_excel:
+            await update.message.reply_text(
+                f"❌ Format không hỗ trợ.\n\n"
+                f"📄 File: {file_name}\n\n"
+                f"**Formats hỗ trợ:**\n"
+                f"• Excel (.xlsx) - Template\n"
+                f"• PDF, Word, Text - Documents",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📥 Tải template mẫu", callback_data='kb_download_template')],
+                    [InlineKeyboardButton("🔙 Quay lại", callback_data='menu_knowledge')]
+                ]),
+                parse_mode='Markdown'
+            )
+            return State.KNOWLEDGE_UPLOAD.value
+        
+        # Check file size (max 5MB for Excel)
         if doc.file_size > 5 * 1024 * 1024:
             await update.message.reply_text(
                 "❌ File quá lớn (tối đa 5MB)\n\nVui lòng giảm kích thước file.",
@@ -1230,7 +1417,7 @@ Gửi file Excel (.xlsx) chứa thông tin bạn muốn AI nhớ.
             )
             return State.KNOWLEDGE_UPLOAD.value
         
-        await update.message.reply_text("⏳ Đang xử lý file...")
+        await update.message.reply_text("⏳ Đang xử lý file Excel...")
         
         try:
             # Download file
@@ -1244,15 +1431,26 @@ Gửi file Excel (.xlsx) chứa thông tin bạn muốn AI nhớ.
             result = self.knowledge_manager.save_user_knowledge(str(tg_user_id), buffer)
             
             if result['success']:
+                # Get quota info
+                quota_info = result.get('quota_info', {})
+                storage_mb = quota_info.get('storage_bytes', 0) / (1024 * 1024)
+                
                 msg = f"""
 ✅ **Upload thành công!**
 
 📊 **Kết quả:**
-├─ 📄 Số mục: {result['items_count']}
-└─ 📁 Danh mục: {', '.join(result['categories'][:3])}
+├─ 📄 Đã lưu: {result['items_count']} mục
+├─ 📁 Danh mục: {', '.join(result['categories'][:3])}"""
+                
+                if result.get('items_skipped', 0) > 0:
+                    msg += f"\n├─ ⚠️ Bỏ qua: {result['items_skipped']} mục (vượt quota)"
+                if result.get('items_cleaned', 0) > 0:
+                    msg += f"\n├─ 🧹 Đã dọn: {result['items_cleaned']} mục cũ"
+                
+                msg += f"""
+└─ 💾 Quota: {quota_info.get('documents_count', 0)}/{quota_info.get('documents_limit', 100)} docs ({quota_info.get('usage_percent', 0):.1f}%)
 
 🎉 AI đã "nhớ" thông tin của bạn!
-Từ giờ AI sẽ sử dụng kiến thức này khi trò chuyện.
 """
             else:
                 msg = f"❌ **Lỗi:** {result['message']}"
@@ -1330,6 +1528,91 @@ Hành động này không thể hoàn tác!
         
         return State.MAIN_MENU.value
     
+    async def kb_cleanup(self, update: Update, context: CallbackContext) -> int:
+        """Show cleanup options"""
+        query = update.callback_query
+        await query.answer()
+        
+        tg_user_id = update.effective_user.id
+        quota = self.knowledge_manager.get_user_quota(str(tg_user_id))
+        
+        msg = f"""
+🧹 **Dọn dẹp Knowledge Base**
+
+Xóa các documents cũ hoặc ít sử dụng để giải phóng quota.
+
+📊 **Tình trạng hiện tại:**
+├─ 📄 Documents: {quota['documents_count']}/{quota['documents_limit']}
+├─ 💾 Storage: {quota['storage_bytes'] / 1024 / 1024:.2f}/{quota['storage_limit_mb']} MB
+└─ 📈 Sử dụng: {quota['usage_percent']:.1f}%
+
+**Chọn mức độ dọn dẹp:**
+"""
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("🧹 Dọn 20%", callback_data='kb_cleanup_20'),
+                InlineKeyboardButton("🧹 Dọn 50%", callback_data='kb_cleanup_50')
+            ],
+            [InlineKeyboardButton("🧹 Dọn 80% (giữ lại 20%)", callback_data='kb_cleanup_80')],
+            [InlineKeyboardButton("🔙 Quay lại", callback_data='menu_knowledge')]
+        ]
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.KNOWLEDGE_MENU.value
+    
+    async def kb_cleanup_execute(self, update: Update, context: CallbackContext) -> int:
+        """Execute cleanup with specified amount"""
+        query = update.callback_query
+        await query.answer("🧹 Đang dọn dẹp...")
+        
+        # Parse cleanup amount from callback data
+        data = query.data
+        if data == 'kb_cleanup_20':
+            amount = 0.2
+        elif data == 'kb_cleanup_50':
+            amount = 0.5
+        elif data == 'kb_cleanup_80':
+            amount = 0.8
+        else:
+            amount = 0.2
+        
+        tg_user_id = update.effective_user.id
+        result = self.knowledge_manager.force_cleanup(str(tg_user_id), amount)
+        
+        if result['success']:
+            quota = self.knowledge_manager.get_user_quota(str(tg_user_id))
+            msg = f"""
+✅ **Dọn dẹp hoàn tất!**
+
+🧹 Đã xóa: {result['cleaned']} documents
+
+📊 **Tình trạng mới:**
+├─ 📄 Documents: {quota['documents_count']}/{quota['documents_limit']}
+├─ 💾 Storage: {quota['storage_bytes'] / 1024 / 1024:.2f}/{quota['storage_limit_mb']} MB
+└─ 📈 Sử dụng: {quota['usage_percent']:.1f}%
+"""
+        else:
+            msg = f"❌ {result['message']}"
+        
+        keyboard = [
+            [InlineKeyboardButton("📚 Knowledge Base", callback_data='menu_knowledge')],
+            [InlineKeyboardButton("🏠 Menu chính", callback_data='back_main')]
+        ]
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.KNOWLEDGE_MENU.value
+
     # ============================================================
     # VIEW CONFIGURATION
     # ============================================================
@@ -1496,6 +1779,305 @@ Liên hệ admin nếu cần giúp đỡ.
         return State.MAIN_MENU.value
     
     # ============================================================
+    # ESP DEVICE MANAGEMENT
+    # ============================================================
+    async def menu_esp(self, update: Update, context: CallbackContext) -> int:
+        """Show ESP device management menu"""
+        query = update.callback_query
+        await query.answer()
+        
+        tg_user_id = update.effective_user.id
+        devices = self.esp_device_manager.get_user_devices(tg_user_id)
+        
+        msg = """
+📱 **Quản lý ESP32 Devices**
+
+Đăng ký ESP32 của bạn để:
+• ✅ Sử dụng API keys của bạn trên ESP
+• ✅ Truy cập MeiLin Knowledge Base
+• ✅ Custom persona và cài đặt
+
+"""
+        
+        if devices:
+            msg += f"**📋 Devices của bạn ({len(devices)}):**\n"
+            for i, dev in enumerate(devices, 1):
+                status = "🟢" if dev['is_active'] else "🔴"
+                msg += f"{i}. {status} **{dev['device_name']}**\n"
+                msg += f"   └ ID: `{dev['device_id']}`\n"
+        else:
+            msg += "_Bạn chưa đăng ký device nào._\n"
+        
+        keyboard = [
+            [InlineKeyboardButton("➕ Đăng ký Device mới", callback_data='esp_register')],
+        ]
+        
+        if devices:
+            keyboard.append([
+                InlineKeyboardButton("📋 Xem chi tiết Devices", callback_data='esp_list_details')
+            ])
+        
+        keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='back_main')])
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.ESP_MENU.value
+    
+    async def esp_register_start(self, update: Update, context: CallbackContext) -> int:
+        """Start ESP device registration - ask for device ID"""
+        query = update.callback_query
+        await query.answer()
+        
+        msg = """
+➕ **Đăng ký ESP32 Device**
+
+**Bước 1/2: Nhập Device ID**
+
+Device ID là mã định danh duy nhất của ESP32.
+Bạn có thể tự đặt hoặc dùng MAC address.
+
+📌 **Ví dụ:**
+• `esp32_living_room`
+• `meilin_bedroom_01`
+• `AA:BB:CC:DD:EE:FF`
+
+💡 _Yêu cầu: 6-50 ký tự, không có khoảng trắng_
+
+Nhập Device ID:
+"""
+        
+        keyboard = [[InlineKeyboardButton("❌ Hủy", callback_data='menu_esp')]]
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.ESP_REGISTER_ID.value
+    
+    async def esp_register_id_received(self, update: Update, context: CallbackContext) -> int:
+        """Receive Device ID, ask for name"""
+        tg_user_id = update.effective_user.id
+        device_id = update.message.text.strip()
+        
+        # Validate device_id
+        if len(device_id) < 6 or len(device_id) > 50:
+            await update.message.reply_text(
+                "❌ Device ID phải từ 6-50 ký tự.\n\nVui lòng nhập lại:"
+            )
+            return State.ESP_REGISTER_ID.value
+        
+        if ' ' in device_id:
+            await update.message.reply_text(
+                "❌ Device ID không được chứa khoảng trắng.\n\nVui lòng nhập lại:"
+            )
+            return State.ESP_REGISTER_ID.value
+        
+        # Save to session
+        session = self.get_session(tg_user_id)
+        session['esp_register'] = {'device_id': device_id}
+        
+        msg = f"""
+✅ **Device ID:** `{device_id}`
+
+**Bước 2/2: Nhập tên Device (tùy chọn)**
+
+Đặt tên dễ nhớ cho device của bạn.
+
+📌 **Ví dụ:**
+• MeiLin Phòng khách
+• ESP32 Phòng ngủ
+• My Smart Speaker
+
+💡 _Hoặc gửi /skip để dùng Device ID làm tên_
+"""
+        
+        keyboard = [[InlineKeyboardButton("⏭️ Bỏ qua", callback_data='esp_skip_name')]]
+        
+        await update.message.reply_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.ESP_REGISTER_NAME.value
+    
+    async def esp_register_name_received(self, update: Update, context: CallbackContext) -> int:
+        """Receive device name and complete registration"""
+        tg_user_id = update.effective_user.id
+        session = self.get_session(tg_user_id)
+        
+        device_name = update.message.text.strip() if update.message else None
+        device_id = session.get('esp_register', {}).get('device_id')
+        
+        if not device_id:
+            await update.message.reply_text("❌ Có lỗi xảy ra. Vui lòng thử lại với /start")
+            return ConversationHandler.END
+        
+        # Register device
+        result = self.esp_device_manager.register_device(
+            device_id=device_id,
+            telegram_user_id=tg_user_id,
+            device_name=device_name
+        )
+        
+        if not result['success']:
+            await update.message.reply_text(
+                f"❌ Đăng ký thất bại: {result.get('error')}\n\n"
+                "Vui lòng thử lại với Device ID khác."
+            )
+            return await self.menu_esp(update, context)
+        
+        # Success message with API key
+        msg = f"""
+🎉 **Đăng ký thành công!**
+
+📱 **Device:** {device_name or device_id}
+🆔 **Device ID:** `{device_id}`
+
+🔑 **Device API Key:**
+```
+{result['device_api_key']}
+```
+
+⚠️ **QUAN TRỌNG:**
+1. Copy API key này và lưu lại
+2. Cấu hình trong ESP32 menuconfig:
+   ```
+   → MeiLin Configuration
+     → Device API Key: {result['device_api_key']}
+   ```
+
+💡 Device sẽ tự động sử dụng API keys (LLM, TTS) mà bạn đã cấu hình trong bot này.
+"""
+        
+        keyboard = [
+            [InlineKeyboardButton("📱 Quản lý Devices", callback_data='menu_esp')],
+            [InlineKeyboardButton("🔙 Menu chính", callback_data='back_main')]
+        ]
+        
+        await update.message.reply_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        # Clear session
+        session.pop('esp_register', None)
+        
+        return State.ESP_MENU.value
+    
+    async def esp_skip_name(self, update: Update, context: CallbackContext) -> int:
+        """Skip device name and use device_id as name"""
+        query = update.callback_query
+        await query.answer()
+        
+        tg_user_id = update.effective_user.id
+        session = self.get_session(tg_user_id)
+        device_id = session.get('esp_register', {}).get('device_id')
+        
+        if not device_id:
+            await query.edit_message_text("❌ Có lỗi xảy ra. Vui lòng thử lại với /start")
+            return ConversationHandler.END
+        
+        # Register device with device_id as name
+        result = self.esp_device_manager.register_device(
+            device_id=device_id,
+            telegram_user_id=tg_user_id,
+            device_name=device_id
+        )
+        
+        if not result['success']:
+            await query.edit_message_text(
+                f"❌ Đăng ký thất bại: {result.get('error')}\n\n"
+                "Vui lòng thử lại với Device ID khác."
+            )
+            return State.ESP_MENU.value
+        
+        # Success message
+        msg = f"""
+🎉 **Đăng ký thành công!**
+
+📱 **Device:** {device_id}
+
+🔑 **Device API Key:**
+```
+{result['device_api_key']}
+```
+
+⚠️ **Lưu API key này** và cấu hình trong ESP32!
+
+💡 Device sẽ tự động sử dụng API keys của bạn.
+"""
+        
+        keyboard = [
+            [InlineKeyboardButton("📱 Quản lý Devices", callback_data='menu_esp')],
+            [InlineKeyboardButton("🔙 Menu chính", callback_data='back_main')]
+        ]
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        session.pop('esp_register', None)
+        return State.ESP_MENU.value
+    
+    async def esp_list_details(self, update: Update, context: CallbackContext) -> int:
+        """Show detailed list of user's devices"""
+        query = update.callback_query
+        await query.answer()
+        
+        tg_user_id = update.effective_user.id
+        devices = self.esp_device_manager.get_user_devices(tg_user_id)
+        
+        if not devices:
+            await query.edit_message_text(
+                "📱 Bạn chưa có device nào.\n\nSử dụng nút bên dưới để đăng ký.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("➕ Đăng ký Device", callback_data='esp_register')],
+                    [InlineKeyboardButton("🔙 Quay lại", callback_data='menu_esp')]
+                ])
+            )
+            return State.ESP_MENU.value
+        
+        msg = "📱 **Chi tiết ESP32 Devices:**\n\n"
+        
+        keyboard = []
+        for dev in devices:
+            status = "🟢 Active" if dev['is_active'] else "🔴 Disabled"
+            msg += f"**{dev['device_name']}**\n"
+            msg += f"├─ ID: `{dev['device_id']}`\n"
+            msg += f"├─ Key: `{dev['device_api_key']}`\n"
+            msg += f"├─ Status: {status}\n"
+            msg += f"├─ Requests: {dev['total_requests']}\n"
+            msg += f"└─ Last seen: {dev['last_seen'] or 'Never'}\n\n"
+            
+            # Add button for each device
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"⚙️ {dev['device_name'][:20]}", 
+                    callback_data=f"esp_manage_{dev['device_id']}"
+                )
+            ])
+        
+        keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='menu_esp')])
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.ESP_VIEW_DEVICES.value
+    
+    # ============================================================
     # BUILD APPLICATION
     # ============================================================
     def build_application(self) -> Application:
@@ -1514,11 +2096,14 @@ Liên hệ admin nếu cần giúp đỡ.
                     CallbackQueryHandler(self.wizard_start, pattern='^wizard_start$'),
                     CallbackQueryHandler(self.menu_personality, pattern='^menu_personality$'),
                     CallbackQueryHandler(self.menu_knowledge, pattern='^menu_knowledge$'),
+                    CallbackQueryHandler(self.menu_esp, pattern='^menu_esp$'),
                     CallbackQueryHandler(self.view_config, pattern='^view_config$'),
                     CallbackQueryHandler(self.start_chat, pattern='^start_chat$'),
                     CallbackQueryHandler(self.show_help, pattern='^help$'),
                     CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
                     CallbackQueryHandler(self.back_to_main, pattern='^menu_api$'),
+                    # Accept Excel file anytime from main menu
+                    MessageHandler(filters.Document.ALL, self.kb_handle_upload_anytime),
                 ],
                 State.API_SELECT_PROVIDER.value: [
                     CallbackQueryHandler(self.wizard_select_llm, pattern='^select_llm_'),
@@ -1573,6 +2158,8 @@ Liên hệ admin nếu cần giúp đỡ.
                     CallbackQueryHandler(self.kb_download_current, pattern='^kb_download_current$'),
                     CallbackQueryHandler(self.kb_upload_prompt, pattern='^kb_upload$'),
                     CallbackQueryHandler(self.kb_delete_confirm, pattern='^kb_delete$'),
+                    CallbackQueryHandler(self.kb_cleanup, pattern='^kb_cleanup$'),
+                    CallbackQueryHandler(self.kb_cleanup_execute, pattern='^kb_cleanup_\\d+$'),
                     CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
                 ],
                 State.KNOWLEDGE_UPLOAD.value: [
@@ -1584,10 +2171,31 @@ Liên hệ admin nếu cần giúp đỡ.
                     CallbackQueryHandler(self.kb_delete_execute, pattern='^kb_delete_confirm$'),
                     CallbackQueryHandler(self.menu_knowledge, pattern='^menu_knowledge$'),
                 ],
+                # ESP Device Management states
+                State.ESP_MENU.value: [
+                    CallbackQueryHandler(self.esp_register_start, pattern='^esp_register$'),
+                    CallbackQueryHandler(self.esp_list_details, pattern='^esp_list_details$'),
+                    CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
+                ],
+                State.ESP_REGISTER_ID.value: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.esp_register_id_received),
+                    CallbackQueryHandler(self.menu_esp, pattern='^menu_esp$'),
+                ],
+                State.ESP_REGISTER_NAME.value: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.esp_register_name_received),
+                    CallbackQueryHandler(self.esp_skip_name, pattern='^esp_skip_name$'),
+                    CallbackQueryHandler(self.menu_esp, pattern='^menu_esp$'),
+                ],
+                State.ESP_VIEW_DEVICES.value: [
+                    CallbackQueryHandler(self.menu_esp, pattern='^menu_esp$'),
+                    CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
+                ],
             },
             fallbacks=[
                 CommandHandler('cancel', self.cancel),
                 CallbackQueryHandler(self.cancel, pattern='^cancel'),
+                # Catch-all for expired callbacks - redirect to main menu
+                CallbackQueryHandler(self.handle_expired_callback),
             ],
             per_user=True,
             per_chat=True,
@@ -1595,7 +2203,45 @@ Liên hệ admin nếu cần giúp đỡ.
         
         app.add_handler(conv_handler)
         
+        # Global handler for any callback that wasn't handled (expired sessions)
+        app.add_handler(CallbackQueryHandler(self.handle_expired_callback))
+        
         return app
+    
+    async def handle_expired_callback(self, update: Update, context: CallbackContext) -> int:
+        """Handle callbacks from old messages after bot restart"""
+        query = update.callback_query
+        await query.answer("⏰ Phiên đã hết hạn. Đang tải lại...")
+        
+        # Get user info and show main menu
+        tg_user = update.effective_user
+        db_user_id = self.get_or_create_db_user(update)
+        
+        if db_user_id:
+            summary = self.user_manager.get_user_config_summary(db_user_id)
+            welcome_msg = self._build_welcome_message(tg_user, summary)
+            keyboard = self._build_main_menu_keyboard(summary)
+            
+            try:
+                await query.edit_message_text(
+                    welcome_msg,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+            except Exception:
+                # If edit fails, send new message
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=welcome_msg,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+        else:
+            await query.edit_message_text(
+                "⏰ Phiên đã hết hạn.\n\nVui lòng gõ /start để bắt đầu lại."
+            )
+        
+        return State.MAIN_MENU.value
     
     def run(self):
         """Run the bot"""

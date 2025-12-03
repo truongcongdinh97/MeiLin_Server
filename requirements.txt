@@ -8,3 +8,17 @@ asyncio
 fastapi
 uvicorn
 requests
+
+# Document processing
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+
+# Telegram bot
+python-telegram-bot>=20.0
+
+# Excel processing
+pandas
+openpyxl
+
+# Encryption
+cryptography
