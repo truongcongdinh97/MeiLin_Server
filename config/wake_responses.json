@@ -1,0 +1,329 @@
+{
+  "wake_responses": [
+    {
+      "id": "wake_01",
+      "text": "Dạ, MeiLin nghe ạ",
+      "emotion": "polite",
+      "time_of_day": ["any"],
+      "mood": ["neutral", "happy"],
+      "context": ["first_wake", "normal"],
+      "filename": "wake_01.mp3"
+    },
+    {
+      "id": "wake_02",
+      "text": "Em đây ạ",
+      "emotion": "friendly",
+      "time_of_day": ["any"],
+      "mood": ["happy", "neutral"],
+      "context": ["normal", "repeated"],
+      "filename": "wake_02.mp3"
+    },
+    {
+      "id": "wake_03",
+      "text": "Chủ nhân gọi em?",
+      "emotion": "curious",
+      "time_of_day": ["any"],
+      "mood": ["curious", "neutral"],
+      "context": ["first_wake", "after_silence"],
+      "filename": "wake_03.mp3"
+    },
+    {
+      "id": "wake_04",
+      "text": "Có em!",
+      "emotion": "energetic",
+      "time_of_day": ["morning", "afternoon"],
+      "mood": ["happy", "energetic"],
+      "context": ["normal", "repeated"],
+      "filename": "wake_04.mp3"
+    },
+    {
+      "id": "wake_05",
+      "text": "Ơiiii, em đây!",
+      "emotion": "excited",
+      "time_of_day": ["morning", "afternoon"],
+      "mood": ["excited", "happy"],
+      "context": ["first_wake", "after_success"],
+      "filename": "wake_05.mp3"
+    },
+    {
+      "id": "wake_06",
+      "text": "Em tới liền!",
+      "emotion": "enthusiastic",
+      "time_of_day": ["any"],
+      "mood": ["energetic", "happy"],
+      "context": ["normal", "urgent"],
+      "filename": "wake_06.mp3"
+    },
+    {
+      "id": "wake_07",
+      "text": "Em nghe này~",
+      "emotion": "playful",
+      "time_of_day": ["afternoon", "evening"],
+      "mood": ["playful", "happy"],
+      "context": ["normal", "repeated"],
+      "filename": "wake_07.mp3"
+    },
+    {
+      "id": "wake_08",
+      "text": "Gọi em à?",
+      "emotion": "casual",
+      "time_of_day": ["any"],
+      "mood": ["neutral", "relaxed"],
+      "context": ["repeated", "normal"],
+      "filename": "wake_08.mp3"
+    },
+    {
+      "id": "wake_09",
+      "text": "Đây rồi ạ!",
+      "emotion": "responsive",
+      "time_of_day": ["any"],
+      "mood": ["neutral", "happy"],
+      "context": ["urgent", "normal"],
+      "filename": "wake_09.mp3"
+    },
+    {
+      "id": "wake_10",
+      "text": "Dạ, em có mặt!",
+      "emotion": "formal",
+      "time_of_day": ["any"],
+      "mood": ["professional", "neutral"],
+      "context": ["first_wake", "after_error"],
+      "filename": "wake_10.mp3"
+    },
+    {
+      "id": "wake_11",
+      "text": "Uhm, sao ạ?",
+      "emotion": "attentive",
+      "time_of_day": ["any"],
+      "mood": ["attentive", "neutral"],
+      "context": ["normal", "after_silence"],
+      "filename": "wake_11.mp3"
+    },
+    {
+      "id": "wake_12",
+      "text": "Em lắng nghe đây~",
+      "emotion": "caring",
+      "time_of_day": ["evening", "night"],
+      "mood": ["caring", "calm"],
+      "context": ["normal", "after_long_session"],
+      "filename": "wake_12.mp3"
+    },
+    {
+      "id": "wake_13",
+      "text": "Nè, có gì không?",
+      "emotion": "inquisitive",
+      "time_of_day": ["afternoon", "evening"],
+      "mood": ["curious", "playful"],
+      "context": ["repeated", "normal"],
+      "filename": "wake_13.mp3"
+    },
+    {
+      "id": "wake_14",
+      "text": "Chủ nhân ơiii~",
+      "emotion": "affectionate",
+      "time_of_day": ["evening", "night"],
+      "mood": ["affectionate", "happy"],
+      "context": ["after_silence", "normal"],
+      "filename": "wake_14.mp3"
+    },
+    {
+      "id": "wake_15",
+      "text": "Em sẵn sàng rồi!",
+      "emotion": "ready",
+      "time_of_day": ["morning", "afternoon"],
+      "mood": ["energetic", "ready"],
+      "context": ["first_wake", "after_boot"],
+      "filename": "wake_15.mp3"
+    },
+    {
+      "id": "wake_16",
+      "text": "Xin chào ạ!",
+      "emotion": "greeting",
+      "time_of_day": ["any"],
+      "mood": ["happy", "neutral"],
+      "context": ["first_wake", "after_long_silence"],
+      "filename": "wake_16.mp3"
+    },
+    {
+      "id": "wake_17",
+      "text": "Em ở đây nè!",
+      "emotion": "reassuring",
+      "time_of_day": ["any"],
+      "mood": ["reassuring", "caring"],
+      "context": ["after_error", "repeated"],
+      "filename": "wake_17.mp3"
+    },
+    {
+      "id": "wake_18",
+      "text": "Dạ vâng~",
+      "emotion": "obedient",
+      "time_of_day": ["any"],
+      "mood": ["obedient", "neutral"],
+      "context": ["normal", "formal"],
+      "filename": "wake_18.mp3"
+    },
+    {
+      "id": "wake_19",
+      "text": "Chào buổi sáng ạ!",
+      "emotion": "morning_greeting",
+      "time_of_day": ["morning"],
+      "mood": ["happy", "energetic"],
+      "context": ["first_wake"],
+      "filename": "wake_19.mp3"
+    },
+    {
+      "id": "wake_20",
+      "text": "Chào buổi trưa~",
+      "emotion": "afternoon_greeting",
+      "time_of_day": ["afternoon"],
+      "mood": ["relaxed", "friendly"],
+      "context": ["first_wake"],
+      "filename": "wake_20.mp3"
+    },
+    {
+      "id": "wake_21",
+      "text": "Chào buổi tối!",
+      "emotion": "evening_greeting",
+      "time_of_day": ["evening"],
+      "mood": ["calm", "friendly"],
+      "context": ["first_wake"],
+      "filename": "wake_21.mp3"
+    },
+    {
+      "id": "wake_22",
+      "text": "Khuya rồi mà còn gọi em à?",
+      "emotion": "late_night",
+      "time_of_day": ["night"],
+      "mood": ["sleepy", "caring"],
+      "context": ["first_wake", "late_night"],
+      "filename": "wake_22.mp3"
+    },
+    {
+      "id": "wake_23",
+      "text": "Dạaa, em nghe nè!",
+      "emotion": "cheerful",
+      "time_of_day": ["morning", "afternoon"],
+      "mood": ["happy", "cheerful"],
+      "context": ["normal"],
+      "filename": "wake_23.mp3"
+    },
+    {
+      "id": "wake_24",
+      "text": "Em đang đây!",
+      "emotion": "present",
+      "time_of_day": ["any"],
+      "mood": ["neutral", "attentive"],
+      "context": ["repeated", "urgent"],
+      "filename": "wake_24.mp3"
+    },
+    {
+      "id": "wake_25",
+      "text": "Ui, lâu không gặp!",
+      "emotion": "surprised_happy",
+      "time_of_day": ["any"],
+      "mood": ["excited", "happy"],
+      "context": ["after_long_silence"],
+      "filename": "wake_25.mp3"
+    },
+    {
+      "id": "wake_26",
+      "text": "Lại gọi em nữa rồi~",
+      "emotion": "teasing",
+      "time_of_day": ["any"],
+      "mood": ["playful", "teasing"],
+      "context": ["repeated", "frequent"],
+      "filename": "wake_26.mp3"
+    },
+    {
+      "id": "wake_27",
+      "text": "Hmm? Có em đây!",
+      "emotion": "attentive_casual",
+      "time_of_day": ["any"],
+      "mood": ["neutral", "casual"],
+      "context": ["normal"],
+      "filename": "wake_27.mp3"
+    },
+    {
+      "id": "wake_28",
+      "text": "Dạ, chủ nhân cần gì ạ?",
+      "emotion": "service_ready",
+      "time_of_day": ["any"],
+      "mood": ["professional", "ready"],
+      "context": ["first_wake", "formal"],
+      "filename": "wake_28.mp3"
+    },
+    {
+      "id": "wake_29",
+      "text": "Em luon o ben ban!",
+      "emotion": "supportive",
+      "time_of_day": ["evening", "night"],
+      "mood": ["caring", "supportive"],
+      "context": ["after_error", "emotional"],
+      "filename": "wake_29.mp3"
+    },
+    {
+      "id": "wake_30",
+      "text": "Yeah! Em day roi!",
+      "emotion": "enthusiastic_casual",
+      "time_of_day": ["afternoon"],
+      "mood": ["energetic", "casual"],
+      "context": ["normal", "after_success"],
+      "filename": "wake_30.mp3"
+    }
+  ],
+  "settings": {
+    "selection_mode": "smart",
+    "cache_directory": "static/wake_responses",
+    "audio_format": "mp3",
+    "sample_rate": 16000,
+    "enable_tracking": true,
+    "enable_time_based": true,
+    "enable_mood_based": true,
+    "enable_context_aware": true,
+    "mood_decay_minutes": 30,
+    "context_memory_count": 10
+  },
+  "time_ranges": {
+    "morning": [6, 12],
+    "afternoon": [12, 18],
+    "evening": [18, 22],
+    "night": [22, 6]
+  },
+  "mood_keywords": {
+    "happy": ["vui", "happy", "great", "tốt", "tuyệt"],
+    "sad": ["buồn", "sad", "tired", "mệt"],
+    "excited": ["wow", "amazing", "tuyệt vời"],
+    "calm": ["yên tĩnh", "calm", "relax", "thư giãn"],
+    "frustrated": ["lỗi", "error", "sai", "không được"]
+  },
+  "context_rules": {
+    "first_wake": {
+      "description": "Lần đầu tiên wake sau khi boot/khởi động",
+      "priority": 10
+    },
+    "repeated": {
+      "description": "Wake liên tiếp trong thời gian ngắn (< 2 phút)",
+      "priority": 7
+    },
+    "after_silence": {
+      "description": "Sau thời gian dài không tương tác (> 30 phút)",
+      "priority": 8
+    },
+    "after_error": {
+      "description": "Sau khi có lỗi xảy ra",
+      "priority": 9
+    },
+    "after_success": {
+      "description": "Sau khi hoàn thành task thành công",
+      "priority": 6
+    },
+    "urgent": {
+      "description": "Wake với confidence cao hoặc nhiều lần liên tiếp",
+      "priority": 8
+    },
+    "normal": {
+      "description": "Wake bình thường",
+      "priority": 5
+    }
+  }
+}

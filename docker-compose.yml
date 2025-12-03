@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  # 1. MeiLin API Server (FastAPI)
+  meilin-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: meilin-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - OWNER_USER_ID=${OWNER_USER_ID}
+      - OWNER_USERNAME=${OWNER_USERNAME}
+      - CHROMADB_API_URL=${CHROMADB_API_URL}
+      - CHROMADB_API_TOKEN=${CHROMADB_API_TOKEN}
+      - API_BASE_URL=https://meilin.truongcongdinh.org
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./audio_cache:/app/audio_cache
+      - ./database:/app/database
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./static:/app/static
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - meilin-network
+
+  # 2. Telegram Bot (Optional - separate service)
+  meilin-telegram:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: meilin-telegram
+    restart: unless-stopped
+    command: python telegram_bot.py
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - OWNER_USER_ID=${OWNER_USER_ID}
+      - OWNER_USERNAME=${OWNER_USERNAME}
+      - CHROMADB_API_URL=${CHROMADB_API_URL}
+      - CHROMADB_API_TOKEN=${CHROMADB_API_TOKEN}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./audio_cache:/app/audio_cache
+      - ./database:/app/database
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - meilin-api
+    networks:
+      - meilin-network
+
+  # 3. YouTube Livestream (Optional - separate service)
+  meilin-youtube:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: meilin-youtube
+    restart: unless-stopped
+    command: python main.py
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - OWNER_USER_ID=${OWNER_USER_ID}
+      - OWNER_USERNAME=${OWNER_USERNAME}
+      - CHROMADB_API_URL=${CHROMADB_API_URL}
+      - CHROMADB_API_TOKEN=${CHROMADB_API_TOKEN}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./audio_cache:/app/audio_cache
+      - ./database:/app/database
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./youtube_credentials.json:/app/youtube_credentials.json
+      - ./youtube_token.pickle:/app/youtube_token.pickle
+      - ./youtube.txt:/app/youtube.txt
+    depends_on:
+      - meilin-api
+    networks:
+      - meilin-network
+
+  # 4. Cloudflared Tunnel
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: meilin-cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    volumes:
+      - ./cloudflared:/etc/cloudflared
+    environment:
+      - TUNNEL_ID=${CLOUDFLARED_TUNNEL_ID:-d6fc0f03-ae75-4a75-855c-483bbe436552}
+    depends_on:
+      - meilin-api
+    networks:
+      - meilin-network
+
+  # 5. ChromaDB (Optional - if using local ChromaDB)
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: meilin-chromadb
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./chroma_data:/app/chroma/chroma
+    command: run --host 0.0.0.0 --port 8000 --path /app/chroma/chroma
+    networks:
+      - meilin-network
+
+networks:
+  meilin-network:
+    driver: bridge
+
+volumes:
+  chroma_data:
+  audio_cache:
+  database:

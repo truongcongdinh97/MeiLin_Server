@@ -1,0 +1,11 @@
+Template_ID,Platform,Scenario,Default_Content,Variables,Priority
+TEMP001,Zalo,Urgent,"🔴 KHẨN: {content}",content,High
+TEMP002,Zalo,Normal,"📝 {content}",content,Medium
+TEMP003,Zalo,Reminder,"⏰ Nhắc nhở: {content}",content,Medium
+TEMP004,Telegram,Urgent,"🚨 URGENT: {content}",content,High
+TEMP005,Telegram,Normal,"💬 {content}",content,Medium
+TEMP006,Email,Report,"📊 Báo cáo: {title}\n\n{content}",title,content,Medium
+TEMP007,Email,Urgent,"🔥 KHẨN: {subject}\n\n{body}",subject,body,High
+TEMP008,Email,Meeting,"📅 Meeting: {title}\n⏰ Thời gian: {time}\n📍 Địa điểm: {location}",title,time,location,Medium
+TEMP009,SMS,Urgent,"🚨 KHẨN: {content}",content,High
+TEMP010,SMS,Normal,"📱 {content}",content,Medium

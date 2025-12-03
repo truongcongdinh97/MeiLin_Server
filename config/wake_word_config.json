@@ -1,0 +1,86 @@
+{
+  "version": "2.0",
+  "hardware": {
+    "platform": "XiaoZhi ESP32",
+    "wake_engine": "ESP-SR WakeNet",
+    "current_model": "hilexin",
+    "target_model": "meilin",
+    "repository": "https://github.com/78/xiaozhi-esp32.git",
+    "note": "Fork XiaoZhi để có wake word detection offline trên ESP32"
+  },
+  "wake_words": {
+    "current": {
+      "model": "hilexin",
+      "keywords": ["Hi Lexin", "嗨，乐鑫"],
+      "description": "Wake word mặc định của XiaoZhi (dùng tạm)"
+    },
+    "target": {
+      "model": "meilin",
+      "keywords": ["MeiLin", "Mei Lin", "Em ơi MeiLin"],
+      "description": "Wake word tùy chỉnh (cần training)",
+      "training_status": "pending",
+      "training_samples_required": 100
+    }
+  },
+  "xiaozhi_integration": {
+    "backend_url": "http://192.168.1.100:5000",
+    "wifi_ssid": "YOUR_WIFI_SSID",
+    "wifi_password": "YOUR_WIFI_PASSWORD",
+    "device_id": "esp32_meilin_001",
+    "endpoints": {
+      "wake": "POST /api/wake",
+      "chat": "POST /api/chat",
+      "audio": "GET /audio/{filename}",
+      "behavior": "POST /api/ambient/behavior"
+    }
+  },
+  "detection_settings": {
+    "confidence_threshold": 0.6,
+    "timeout_seconds": 5,
+    "audio_format": "16kHz mono WAV",
+    "sample_rate": 16000,
+    "channels": 1,
+    "offline_detection": true
+  },
+  "integration_phases": {
+    "phase_1": {
+      "name": "Clone & Test XiaoZhi",
+      "tasks": [
+        "Clone xiaozhi-esp32 repository",
+        "Setup ESP-IDF v5.1",
+        "Build and flash original XiaoZhi",
+        "Test hardware (mic, speaker, LED)"
+      ],
+      "duration": "1-2 days",
+      "difficulty": "easy"
+    },
+    "phase_2": {
+      "name": "Modify for MeiLin API",
+      "tasks": [
+        "Change backend URL to MeiLin server",
+        "Update API endpoints",
+        "Test wake event → MeiLin response",
+        "Test chat flow"
+      ],
+      "duration": "3-5 days",
+      "difficulty": "medium"
+    },
+    "phase_3": {
+      "name": "Train Custom Wake Word",
+      "tasks": [
+        "Record 100+ samples of 'MeiLin'",
+        "Use ESP-SR training tool",
+        "Generate meilin_model.bin",
+        "Flash and test"
+      ],
+      "duration": "2-3 days",
+      "difficulty": "hard"
+    }
+  },
+  "responses": {
+    "on_wake": "wake_response",
+    "on_false_positive": "ignore",
+    "on_low_confidence": "clarification"
+  },
+  "language": "vi-VN"
+}

@@ -1,0 +1,94 @@
+{
+  "wake_computer": {
+    "keywords": [
+      "mở máy tính",
+      "bật máy tính",
+      "wake computer",
+      "khởi động máy"
+    ],
+    "type": "telegram",
+    "http_config": {
+      "url": "http://your-n8n-webhook-url.com/wake",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "action": "wake",
+        "device": "main_pc"
+      }
+    },
+    "telegram_config": {
+      "bot_token": "YOUR_TELETHON_BOT_TOKEN",
+      "chat_id": "YOUR_CHAT_ID",
+      "message": "wake"
+    },
+    "response": "Đã gửi lệnh mở máy tính cho anh!"
+  },
+  "turn_on_light": {
+    "keywords": [
+      "bật đèn",
+      "mở đèn",
+      "turn on light"
+    ],
+    "type": "http",
+    "http_config": {
+      "url": "http://192.168.1.100/api/light/on",
+      "method": "GET"
+    },
+    "response": "Đã bật đèn rồi nè!"
+  },
+  "turn_off_light": {
+    "keywords": [
+      "tắt đèn",
+      "turn off light"
+    ],
+    "type": "http",
+    "http_config": {
+      "url": "http://192.168.1.100/api/light/off",
+      "method": "GET"
+    },
+    "response": "Đã tắt đèn rồi nhé!"
+  },
+  "play_music": {
+    "keywords": [
+      "phát nhạc",
+      "mở nhạc",
+      "play music"
+    ],
+    "type": "telegram",
+    "telegram_config": {
+      "bot_token": "YOUR_BOT_TOKEN",
+      "chat_id": "YOUR_CHAT_ID",
+      "message": "play_music"
+    },
+    "response": "Để em mở nhạc cho anh nghe nhé!"
+  },
+  "stop_music": {
+    "keywords": [
+      "tắt nhạc",
+      "dừng nhạc",
+      "stop music"
+    ],
+    "type": "telegram",
+    "telegram_config": {
+      "bot_token": "YOUR_BOT_TOKEN",
+      "chat_id": "YOUR_CHAT_ID",
+      "message": "stop_music"
+    },
+    "response": "Đã dừng nhạc rồi nè!"
+  },
+  "check_weather": {
+    "keywords": [
+      "thời tiết",
+      "weather",
+      "trời hôm nay"
+    ],
+    "type": "http",
+    "http_config": {
+      "url": "https://api.openweathermap.org/data/2.5/weather?q=Hanoi&appid=YOUR_API_KEY&units=metric",
+      "method": "GET"
+    },
+    "response": "Để em kiểm tra thời tiết cho anh..."
+  }
+}

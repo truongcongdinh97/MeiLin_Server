@@ -1,0 +1,42 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Environment
+.env
+.env.local
+
+# Credentials
+client_secret.json
+youtube_credentials.json
+youtube_token.pickle
+*.pickle
+
+# Runtime
+audio_cache/
+logs/
+database/
+data/user_knowledge/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Build
+dist/
+build/
+*.egg-info/

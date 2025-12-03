@@ -1,0 +1,10 @@
+Workflow_ID,Platform,Action_Type,Parameters_Required,Template,Description
+SendZalo_Message,Zalo,Message,"uid,content",{content},Gửi tin nhắn Zalo
+SendTelegram_Msg,Telegram,Message,"uid,content",📱 {content},Gửi tin nhắn Telegram
+SendEmail_Msg,Email,Message,"uid,subject,body",Subject: {subject}\nBody: {body},Gửi email
+CreateJira_Task,Jira,Task,"uid,title,description",Title: {title}\nDescription: {description},Tạo task Jira
+CreateSlack_Message,Slack,Message,"uid,content",💬 {content},Gửi tin nhắn Slack
+SendSMS_Message,SMS,Message,"uid,content",📲 {content},Gửi SMS
+CreateCalendar_Event,Calendar,Event,"uid,title,datetime,location",Event: {title}\nTime: {datetime}\nLocation: {location},Tạo sự kiện lịch
+GenerateReport,Report,Generate,"report_type,parameters",Report Type: {report_type}\nParameters: {parameters},Tạo báo cáo
+Discord_Message,Discord,Message,"uid,content",{content},Send Discord message

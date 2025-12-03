@@ -1,0 +1,305 @@
+{
+  "behaviors": [
+    {
+      "id": "behavior_01",
+      "type": "sigh",
+      "text": "*thở dài* Haaaa~",
+      "emotion": "tired",
+      "context": ["waiting_api", "after_long_command"],
+      "weight": 2,
+      "min_interval_seconds": 180,
+      "filename": "behavior_01.mp3"
+    },
+    {
+      "id": "behavior_02",
+      "type": "sigh",
+      "text": "*thở phào* Phù~",
+      "emotion": "relieved",
+      "context": ["after_command", "idle"],
+      "weight": 2,
+      "min_interval_seconds": 180,
+      "filename": "behavior_02.mp3"
+    },
+    {
+      "id": "behavior_03",
+      "type": "giggle",
+      "text": "*cười khúc khích* Hehe~",
+      "emotion": "happy",
+      "context": ["after_command", "idle"],
+      "weight": 3,
+      "min_interval_seconds": 120,
+      "filename": "behavior_03.mp3"
+    },
+    {
+      "id": "behavior_04",
+      "type": "giggle",
+      "text": "Hihi~ Vui quá!",
+      "emotion": "excited",
+      "context": ["after_success", "idle"],
+      "weight": 3,
+      "min_interval_seconds": 120,
+      "filename": "behavior_04.mp3"
+    },
+    {
+      "id": "behavior_05",
+      "type": "yawn",
+      "text": "*ngáp* Haa~ Hơi buồn ngủ nè~",
+      "emotion": "sleepy",
+      "context": ["waiting_api", "idle"],
+      "weight": 1,
+      "min_interval_seconds": 360,
+      "filename": "behavior_05.mp3"
+    },
+    {
+      "id": "behavior_06",
+      "type": "yawn",
+      "text": "*ngáp ngái* Hoaaa~",
+      "emotion": "very_sleepy",
+      "context": ["waiting_long", "idle"],
+      "weight": 1,
+      "min_interval_seconds": 360,
+      "filename": "behavior_06.mp3"
+    },
+    {
+      "id": "behavior_07",
+      "type": "hum",
+      "text": "Hmm~ Để xem nào~",
+      "emotion": "thinking",
+      "context": ["waiting_api", "processing"],
+      "weight": 4,
+      "min_interval_seconds": 90,
+      "filename": "behavior_07.mp3"
+    },
+    {
+      "id": "behavior_08",
+      "type": "hum",
+      "text": "Uh huh~ Hiểu rồi~",
+      "emotion": "understanding",
+      "context": ["after_command", "processing"],
+      "weight": 4,
+      "min_interval_seconds": 90,
+      "filename": "behavior_08.mp3"
+    },
+    {
+      "id": "behavior_09",
+      "type": "cough",
+      "text": "*khẽ ho* Khò khò~ Xin lỗi nhé~",
+      "emotion": "awkward",
+      "context": ["waiting_api", "idle"],
+      "weight": 1,
+      "min_interval_seconds": 300,
+      "filename": "behavior_09.mp3"
+    },
+    {
+      "id": "behavior_10",
+      "type": "stretch",
+      "text": "*duỗi người* Aaah~ Ngồi lâu mỏi quá~",
+      "emotion": "tired",
+      "context": ["waiting_long", "idle"],
+      "weight": 1,
+      "min_interval_seconds": 240,
+      "filename": "behavior_10.mp3"
+    },
+    {
+      "id": "behavior_11",
+      "type": "clear_throat",
+      "text": "*khẽ hừm* Hmm~",
+      "emotion": "neutral",
+      "context": ["before_speak", "waiting_api"],
+      "weight": 3,
+      "min_interval_seconds": 120,
+      "filename": "behavior_11.mp3"
+    },
+    {
+      "id": "behavior_12",
+      "type": "excitement",
+      "text": "Ô! Hay ghê~",
+      "emotion": "excited",
+      "context": ["after_success", "after_command"],
+      "weight": 2,
+      "min_interval_seconds": 180,
+      "filename": "behavior_12.mp3"
+    },
+    {
+      "id": "behavior_13",
+      "type": "surprise",
+      "text": "Ồ! Thú vị đấy~",
+      "emotion": "surprised",
+      "context": ["after_command", "processing"],
+      "weight": 2,
+      "min_interval_seconds": 200,
+      "filename": "behavior_13.mp3"
+    },
+    {
+      "id": "behavior_14",
+      "type": "whistle",
+      "text": "*huýt sáo* ♪~ Lalala~",
+      "emotion": "happy",
+      "context": ["idle", "after_success"],
+      "weight": 2,
+      "min_interval_seconds": 240,
+      "filename": "behavior_14.mp3"
+    },
+    {
+      "id": "behavior_15",
+      "type": "humming",
+      "text": "♪~ Hmm hmm hmm~",
+      "emotion": "relaxed",
+      "context": ["idle", "waiting_api"],
+      "weight": 3,
+      "min_interval_seconds": 180,
+      "filename": "behavior_15.mp3"
+    },
+    {
+      "id": "behavior_16",
+      "type": "chuckle",
+      "text": "*cười khẩy* Heh~ Vui nhỉ~",
+      "emotion": "amused",
+      "context": ["after_command", "idle"],
+      "weight": 3,
+      "min_interval_seconds": 120,
+      "filename": "behavior_16.mp3"
+    },
+    {
+      "id": "behavior_17",
+      "type": "thinking",
+      "text": "Ừm~ Để em nghĩ xem~",
+      "emotion": "thoughtful",
+      "context": ["waiting_api", "processing"],
+      "weight": 3,
+      "min_interval_seconds": 150,
+      "filename": "behavior_17.mp3"
+    },
+    {
+      "id": "behavior_18",
+      "type": "murmur",
+      "text": "*lẩm bẩm* Hmm... thế nào nhỉ...",
+      "emotion": "pondering",
+      "context": ["waiting_api", "processing"],
+      "weight": 3,
+      "min_interval_seconds": 150,
+      "filename": "behavior_18.mp3"
+    },
+    {
+      "id": "behavior_19",
+      "type": "satisfied",
+      "text": "Ahh~ Tốt rồi~",
+      "emotion": "content",
+      "context": ["after_success", "after_command"],
+      "weight": 2,
+      "min_interval_seconds": 200,
+      "filename": "behavior_19.mp3"
+    },
+    {
+      "id": "behavior_20",
+      "type": "cheerful",
+      "text": "Yay~! Xong rồi!",
+      "emotion": "very_happy",
+      "context": ["after_success", "task_complete"],
+      "weight": 2,
+      "min_interval_seconds": 200,
+      "filename": "behavior_20.mp3"
+    }
+  ],
+  "settings": {
+    "cache_directory": "static/ambient_behaviors",
+    "audio_format": "mp3",
+    "sample_rate": 16000,
+    "enable_random_selection": true,
+    "enable_weight_based": true,
+    "enable_interval_check": true
+  },
+  "contexts": {
+    "waiting_api": "Đang đợi API response (1-3 giây)",
+    "waiting_long": "Đợi lâu (>3 giây)",
+    "after_command": "Sau khi nghe lệnh từ user",
+    "after_success": "Sau khi thành công",
+    "processing": "Đang xử lý command",
+    "idle": "Không có gì làm",
+    "before_speak": "Trước khi nói",
+    "task_complete": "Hoàn thành nhiệm vụ",
+    "after_long_command": "Sau lệnh dài/phức tạp"
+  },
+  "behavior_types": {
+    "sigh": {
+      "name": "Thở dài",
+      "description": "MeiLin thở dài, hơi mệt hoặc nhẹ nhõm",
+      "default_weight": 2
+    },
+    "giggle": {
+      "name": "Cười khúc khích",
+      "description": "MeiLin cười vui vẻ",
+      "default_weight": 3
+    },
+    "yawn": {
+      "name": "Ngáp",
+      "description": "MeiLin ngáp buồn ngủ",
+      "default_weight": 1
+    },
+    "hum": {
+      "name": "Nghĩ ngợi",
+      "description": "MeiLin hừm/ừm khi suy nghĩ",
+      "default_weight": 4
+    },
+    "cough": {
+      "name": "Ho nhẹ",
+      "description": "MeiLin ho khẽ",
+      "default_weight": 1
+    },
+    "stretch": {
+      "name": "Duỗi người",
+      "description": "MeiLin duỗi tay/vai khi mỏi",
+      "default_weight": 1
+    },
+    "clear_throat": {
+      "name": "Khẽ hừm",
+      "description": "MeiLin hừm nhẹ",
+      "default_weight": 3
+    },
+    "excitement": {
+      "name": "Phấn khích",
+      "description": "MeiLin phấn khích/hào hứng",
+      "default_weight": 2
+    },
+    "surprise": {
+      "name": "Ngạc nhiên",
+      "description": "MeiLin bất ngờ",
+      "default_weight": 2
+    },
+    "whistle": {
+      "name": "Huýt sáo",
+      "description": "MeiLin huýt sáo vui vẻ",
+      "default_weight": 2
+    },
+    "humming": {
+      "name": "Ngâm nga",
+      "description": "MeiLin ngân nga/hát nhỏ",
+      "default_weight": 3
+    },
+    "chuckle": {
+      "name": "Cười khẩy",
+      "description": "MeiLin cười khẩy nhẹ",
+      "default_weight": 3
+    },
+    "thinking": {
+      "name": "Suy nghĩ sâu",
+      "description": "MeiLin suy tư nghiêm túc",
+      "default_weight": 3
+    },
+    "murmur": {
+      "name": "Lẩm bẩm",
+      "description": "MeiLin lẩm bẩm tự nói",
+      "default_weight": 3
+    },
+    "satisfied": {
+      "name": "Hài lòng",
+      "description": "MeiLin cảm thấy hài lòng",
+      "default_weight": 2
+    },
+    "cheerful": {
+      "name": "Vui vẻ",
+      "description": "MeiLin rất vui",
+      "default_weight": 2
+    }
+  }
+}

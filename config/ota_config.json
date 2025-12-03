@@ -1,0 +1,30 @@
+{
+  "settings": {
+    "enable_ota": true,
+    "require_https": false,
+    "max_firmware_size": 4194304,
+    "auto_rollback": true,
+    "rollback_timeout": 300,
+    "signature_required": false
+  },
+  "board_compatibility": {
+    "esp32-s3": [
+      "ESP32-S3",
+      "ESP-BOX",
+      "M5Stack-CoreS3"
+    ],
+    "esp32-c3": [
+      "ESP32-C3",
+      "XiaGe-Mini-C3"
+    ],
+    "esp32-p4": [
+      "ESP32-P4"
+    ]
+  },
+  "update_policies": {
+    "force_update": false,
+    "staged_rollout": true,
+    "max_concurrent_updates": 10
+  },
+  "last_updated": "2025-11-29T15:27:57.868784"
+}

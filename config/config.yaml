@@ -1,0 +1,29 @@
+
+model:
+  name: "deepseek-chat"
+  temperature: 0.7
+  max_tokens: 150
+  top_p: 0.9
+tts:
+  voice_id: "d5HVupAWCwe4e6GvMCAL"
+  model: "eleven_v3"  
+  stability: 0.5         
+  similarity_boost: 0.7
+  style: 0.5        
+  use_speaker_boost: true
+  optimize_streaming_latency: 0  
+
+stream:
+  check_interval: 2 
+  max_response_length: 100
+  enable_profanity_filter: true
+  chat_delay: 5
+
+rag:
+  embedding_model: "all-MiniLM-L6-v2"
+  similarity_threshold: 0.7
+  max_context_results: 3
+
+persona:
+  name: "MeiLin"
+  default_mood: "happy"

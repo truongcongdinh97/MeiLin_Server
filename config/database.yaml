@@ -1,0 +1,76 @@
+
+
+# ChromaDB Server
+chromadb:
+  # API URL - Override with CHROMADB_API_URL in .env
+  api_url: "${CHROMADB_API_URL}"
+  
+  # Collections
+  collections:
+    # RAG knowledge base (từ Excel file)
+    knowledge:
+      id: "${CHROMADB_KNOWLEDGE_COLLECTION_ID}"
+      name: "base_ai_knowledge"
+      description: "Generic AI VTuber knowledge base (Base_AI_DB.xlsx)"
+    
+    # Chat history storage
+    chat_history:
+      id: "${CHROMADB_CHAT_HISTORY_COLLECTION_ID}"
+      name: "chat_history"
+      description: "Conversation history with users"
+  
+  # Cloudflare Access (nếu server có protection) - Override in .env
+  headers:
+    CF-Access-Client-Id: "${CHROMADB_CF_CLIENT_ID}"
+    CF-Access-Client-Secret: "${CHROMADB_CF_CLIENT_SECRET}"
+  
+  # Timeouts & Retry
+  timeout: 15  # seconds
+  retry_attempts: 2
+
+# Embedding Service
+embedding:
+  # API URL - Override with EMBEDDING_API_URL in .env
+  api_url: "${EMBEDDING_API_URL}"
+  model: "${EMBEDDING_MODEL}"
+  timeout: 8
+  retries: 2
+  batch_size: 10
+
+# N8N Integration (for Excel → ChromaDB)
+n8n:
+  webhook_url: "https://your-n8n-instance.com/webhook/embed"
+  enabled: false  # Bật nếu muốn auto-sync Excel changes
+
+# ============================================
+# MODE SELECTION (AUTO-DETECT)
+# ============================================
+# Hệ thống sẽ tự động chọn:
+# - CLOUD: Nếu có CHROMADB_API_URL trong .env
+# - LOCAL: Nếu không có (mặc định cho người dùng mới)
+mode: "auto"  # auto | cloud | local
+
+# ============================================
+# LOCAL CHROMADB (Default cho người dùng mới)
+# ============================================
+local:
+  path: "./database/vector_db"  # Thư mục lưu ChromaDB data
+  auto_create: true  # Tự động tạo collections khi khởi động
+  
+  # Collections sẽ được tự động tạo trong local database
+  collections:
+    knowledge: "base_ai_knowledge"
+    chat_history: "chat_history"
+  
+  # Embedding settings (local - không cần API)
+  embedding:
+    model: "paraphrase-multilingual-MiniLM-L12-v2"  # Sentence-transformers local model
+    device: "cpu"  # hoặc "cuda" nếu có GPU
+
+# ============================================
+# CLOUD CHROMADB (Chỉ dùng khi có API keys)
+# ============================================
+# Để dùng cloud mode:
+# 1. Thêm CHROMADB_API_URL vào .env
+# 2. Thêm CHROMADB_CF_CLIENT_ID, CHROMADB_CF_CLIENT_SECRET (nếu cần)
+# 3. Hệ thống sẽ tự động detect và dùng cloud

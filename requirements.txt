@@ -1,0 +1,10 @@
+ollama
+elevenlabs>=1.2.0
+chromadb
+sentence-transformers
+pyyaml
+python-dotenv
+asyncio
+fastapi
+uvicorn
+requests

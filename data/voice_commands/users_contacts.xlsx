@@ -1,0 +1,11 @@
+UID,Name,Platform,Phone,Email,Notes
+U001,A,Zalo,0912345678,a@company.com,Team Lead
+U002,B,Telegram,0912345679,b@company.com,Developer
+U003,C,Email,,c@company.com,Manager
+U004,D,Zalo,0912345680,d@company.com,Designer
+U005,E,Telegram,0912345681,e@company.com,Tester
+U006,F,Email,,f@company.com,Analyst
+U007,G,Zalo,0912345682,g@company.com,Product Owner
+U008,H,Telegram,0912345683,h@company.com,Scrum Master
+U009,I,Email,,i@company.com,QA Lead
+U010,J,Zalo,0912345684,j@company.com,DevOps

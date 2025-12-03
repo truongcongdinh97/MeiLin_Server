@@ -1,0 +1,189 @@
+{
+  "responses": [
+    {
+      "id": "idle_01",
+      "text": "Em đi ngủ tí đây, gọi em khi cần nhá!",
+      "emotion": "sleepy",
+      "context": ["going_to_sleep", "idle_mode"],
+      "time_of_day": ["night"],
+      "filename": "idle_01.mp3"
+    },
+    {
+      "id": "idle_02",
+      "text": "Em xin phép lui xuống ạ, bái bai!",
+      "emotion": "polite",
+      "context": ["idle_mode", "leaving"],
+      "time_of_day": ["evening", "night"],
+      "filename": "idle_02.mp3"
+    },
+    {
+      "id": "idle_03",
+      "text": "Bái bai! Hẹn gặp lại nhá!",
+      "emotion": "friendly",
+      "context": ["goodbye", "idle_mode"],
+      "time_of_day": ["morning", "afternoon", "evening"],
+      "filename": "idle_03.mp3"
+    },
+    {
+      "id": "idle_04",
+      "text": "Khi nào cần thì gọi em nhá!",
+      "emotion": "helpful",
+      "context": ["idle_mode", "standby"],
+      "time_of_day": ["morning", "afternoon"],
+      "filename": "idle_04.mp3"
+    },
+    {
+      "id": "idle_05",
+      "text": "Em đi nghỉ đây, ngủ ngon nhé!",
+      "emotion": "caring",
+      "context": ["going_to_sleep", "idle_mode"],
+      "time_of_day": ["night"],
+      "filename": "idle_05.mp3"
+    },
+    {
+      "id": "idle_06",
+      "text": "Ok! Em standby đây, cần gì gọi em!",
+      "emotion": "ready",
+      "context": ["standby", "idle_mode"],
+      "time_of_day": ["morning", "afternoon"],
+      "filename": "idle_06.mp3"
+    },
+    {
+      "id": "idle_07",
+      "text": "Vậy em chấm dứt rồi nhá, bye bye!",
+      "emotion": "casual",
+      "context": ["ending", "idle_mode"],
+      "time_of_day": ["afternoon", "evening"],
+      "filename": "idle_07.mp3"
+    },
+    {
+      "id": "idle_08",
+      "text": "Em tạm biệt nhá! Cần thì gọi lại em!",
+      "emotion": "polite",
+      "context": ["goodbye", "idle_mode"],
+      "time_of_day": ["morning", "afternoon", "evening"],
+      "filename": "idle_08.mp3"
+    },
+    {
+      "id": "idle_09",
+      "text": "Haaa~ Em hơi mệt rồi, đi nghỉ tí!",
+      "emotion": "tired",
+      "context": ["going_to_sleep", "tired"],
+      "time_of_day": ["evening", "night"],
+      "filename": "idle_09.mp3"
+    },
+    {
+      "id": "idle_10",
+      "text": "Em offline nhá! Talk to you later!",
+      "emotion": "casual_bilingual",
+      "context": ["idle_mode", "ending"],
+      "time_of_day": ["afternoon", "evening"],
+      "filename": "idle_10.mp3"
+    },
+    {
+      "id": "idle_11",
+      "text": "Khi nào cần em thì gọi nhé, em luôn sẵn sàng!",
+      "emotion": "supportive",
+      "context": ["standby", "idle_mode"],
+      "time_of_day": ["morning", "afternoon"],
+      "filename": "idle_11.mp3"
+    },
+    {
+      "id": "idle_12",
+      "text": "Em đi đây! Hẹn gặp lại sau nhá!",
+      "emotion": "friendly",
+      "context": ["goodbye", "idle_mode"],
+      "time_of_day": ["morning", "afternoon"],
+      "filename": "idle_12.mp3"
+    },
+    {
+      "id": "idle_13",
+      "text": "Nghe lệnh xong rồi, em standby nhá!",
+      "emotion": "professional",
+      "context": ["task_complete", "standby"],
+      "time_of_day": ["morning", "afternoon"],
+      "filename": "idle_13.mp3"
+    },
+    {
+      "id": "idle_14",
+      "text": "Oke! Em tạm thời nghỉ, cần thì gọi em!",
+      "emotion": "casual",
+      "context": ["idle_mode", "standby"],
+      "time_of_day": ["afternoon", "evening"],
+      "filename": "idle_14.mp3"
+    },
+    {
+      "id": "idle_15",
+      "text": "Em chào anh nhá! See you soon!",
+      "emotion": "cheerful_bilingual",
+      "context": ["goodbye", "idle_mode"],
+      "time_of_day": ["morning", "afternoon", "evening"],
+      "filename": "idle_15.mp3"
+    },
+    {
+      "id": "idle_16",
+      "text": "Tạm biệt nhé! Em đi thôi!",
+      "emotion": "casual",
+      "context": ["goodbye", "leaving"],
+      "time_of_day": ["afternoon", "evening"],
+      "filename": "idle_16.mp3"
+    },
+    {
+      "id": "idle_17",
+      "text": "*ngáp* Em đi ngủ đây, buồn ngủ quá!",
+      "emotion": "very_sleepy",
+      "context": ["going_to_sleep", "tired"],
+      "time_of_day": ["night"],
+      "filename": "idle_17.mp3"
+    },
+    {
+      "id": "idle_18",
+      "text": "Em vô chế độ chờ, cần thì gọi MeiLin nhé!",
+      "emotion": "friendly",
+      "context": ["idle_mode", "standby"],
+      "time_of_day": ["morning", "afternoon", "evening"],
+      "filename": "idle_18.mp3"
+    },
+    {
+      "id": "idle_19",
+      "text": "Chúc bạn một ngày vui vẻ! Em đi đây!",
+      "emotion": "caring",
+      "context": ["goodbye", "wishing_well"],
+      "time_of_day": ["morning", "afternoon"],
+      "filename": "idle_19.mp3"
+    },
+    {
+      "id": "idle_20",
+      "text": "Ok done! Em standby rồi, gọi em bất cứ lúc nào!",
+      "emotion": "ready",
+      "context": ["task_complete", "standby"],
+      "time_of_day": ["morning", "afternoon"],
+      "filename": "idle_20.mp3"
+    }
+  ],
+  "settings": {
+    "selection_mode": "context_aware",
+    "cache_directory": "static/ambient_responses",
+    "audio_format": "mp3",
+    "sample_rate": 16000,
+    "enable_time_based": true,
+    "enable_context_aware": true
+  },
+  "contexts": {
+    "going_to_sleep": "User đi ngủ hoặc MeiLin chuyển sang sleep mode",
+    "idle_mode": "MeiLin chuyển sang chế độ chờ/standby",
+    "goodbye": "Chào tạm biệt thông thường",
+    "standby": "Sẵn sàng chờ lệnh tiếp theo",
+    "leaving": "MeiLin rời khỏi (tắt/offline)",
+    "ending": "Kết thúc session",
+    "tired": "MeiLin mệt mỏi",
+    "task_complete": "Hoàn thành task, chuyển sang standby",
+    "wishing_well": "Chúc người dùng tốt đẹp"
+  },
+  "time_ranges": {
+    "morning": [6, 12],
+    "afternoon": [12, 18],
+    "evening": [18, 22],
+    "night": [22, 6]
+  }
+}

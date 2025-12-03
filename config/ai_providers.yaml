@@ -1,0 +1,267 @@
+
+# ============ LLM PROVIDERS (Não bộ AI) ============
+llm_providers:
+  # Deepseek AI - Model chính (R1)
+  deepseek:
+    provider: "deepseek"
+    api_url: "https://api.deepseek.com/v1/chat/completions"
+    models:
+      - name: "deepseek-chat"
+        description: "DeepSeek Chat Model - Balanced"
+        max_tokens: 4096
+        context_window: 32768
+      - name: "deepseek-reasoner"
+        description: "DeepSeek R1 - Advanced reasoning"
+        max_tokens: 8192
+        context_window: 64000
+    default_model: "deepseek-chat"
+    default_params:
+      temperature: 0.7
+      top_p: 0.9
+      max_tokens: 150
+      frequency_penalty: 0.0
+      presence_penalty: 0.0
+    api_key_env: "DEEPSEEK_API_KEY"
+    enabled: true
+
+  # OpenAI ChatGPT
+  openai:
+    provider: "openai"
+    api_url: "https://api.openai.com/v1/chat/completions"
+    models:
+      - name: "gpt-4o"
+        description: "GPT-4 Optimized - Most capable"
+        max_tokens: 4096
+        context_window: 128000
+      - name: "gpt-4o-mini"
+        description: "GPT-4 Mini - Fast and affordable"
+        max_tokens: 16384
+        context_window: 128000
+      - name: "gpt-3.5-turbo"
+        description: "GPT-3.5 Turbo - Legacy fast model"
+        max_tokens: 4096
+        context_window: 16385
+    default_model: "gpt-4o-mini"
+    default_params:
+      temperature: 0.7
+      top_p: 1.0
+      max_tokens: 150
+      frequency_penalty: 0.0
+      presence_penalty: 0.0
+    api_key_env: "OPENAI_API_KEY"
+    enabled: false
+
+  # Anthropic Claude
+  anthropic:
+    provider: "anthropic"
+    api_url: "https://api.anthropic.com/v1/messages"
+    models:
+      - name: "claude-3-5-sonnet-20241022"
+        description: "Claude 3.5 Sonnet - Most intelligent"
+        max_tokens: 8192
+        context_window: 200000
+      - name: "claude-3-5-haiku-20241022"
+        description: "Claude 3.5 Haiku - Fast and affordable"
+        max_tokens: 8192
+        context_window: 200000
+    default_model: "claude-3-5-sonnet-20241022"
+    default_params:
+      temperature: 0.7
+      top_p: 0.9
+      max_tokens: 150
+    api_key_env: "ANTHROPIC_API_KEY"
+    enabled: false
+
+  # Google Gemini
+  google:
+    provider: "google"
+    api_url: "https://generativelanguage.googleapis.com/v1beta/models"
+    models:
+      - name: "gemini-2.0-flash-exp"
+        description: "Gemini 2.0 Flash - Latest experimental"
+        max_tokens: 8192
+        context_window: 1048576
+      - name: "gemini-1.5-pro"
+        description: "Gemini 1.5 Pro - Production ready"
+        max_tokens: 8192
+        context_window: 2097152
+    default_model: "gemini-2.0-flash-exp"
+    default_params:
+      temperature: 0.7
+      top_p: 0.95
+      max_tokens: 150
+    api_key_env: "GOOGLE_API_KEY"
+    enabled: false
+
+  # Local LLM (Ollama)
+  ollama:
+    provider: "ollama"
+    api_url: "http://localhost:11434/api/chat"
+    models:
+      - name: "deepseek-r1:8b"
+        description: "DeepSeek R1 8B - Local model"
+        max_tokens: 8192
+        context_window: 64000
+      - name: "llama3.1:8b"
+        description: "Llama 3.1 8B - Fast local model"
+        max_tokens: 2048
+        context_window: 128000
+      - name: "qwen2.5:7b"
+        description: "Qwen 2.5 7B - Chinese optimized"
+        max_tokens: 2048
+        context_window: 32768
+    default_model: "deepseek-r1:8b"
+    default_params:
+      temperature: 0.7
+      top_p: 0.9
+      num_predict: 150
+    api_key_env: null  # Không cần API key cho local
+    enabled: false
+
+# ============ TTS PROVIDERS ============
+tts_providers:
+  # ElevenLabs - TTS chính (Elemen v3)
+  elevenlabs:
+    provider: "elevenlabs"
+    api_url: "https://api.elevenlabs.io/v1/text-to-speech"
+    voices:
+      - voice_id: "d5HVupAWCwe4e6GvMCAL"
+        name: "MeiLin Voice (Custom)"
+        language: "vi"
+        gender: "female"
+        description: "Giọng MeiLin custom - Tiếng Việt tự nhiên"
+      - voice_id: "EXAVITQu4vr4xnSDxMaL"
+        name: "Bella (Multilingual)"
+        language: "multi"
+        gender: "female"
+        description: "Giọng nữ đa ngôn ngữ"
+    default_voice: "d5HVupAWCwe4e6GvMCAL"
+    models:
+      - name: "eleven_v3"
+        description: "Eleven V3 - Latest multilingual"
+        languages: ["en", "vi", "zh", "ja", "ko"]
+      - name: "eleven_turbo_v2_5"
+        description: "Turbo V2.5 - Fast, low latency"
+        languages: ["en", "vi"]
+    default_model: "eleven_v3"
+    default_params:
+      stability: 0.5
+      similarity_boost: 0.7
+      style: 0.5
+      use_speaker_boost: true
+      optimize_streaming_latency: 0
+    api_key_env: "ELEVENLABS_API_KEY"
+    enabled: true
+
+  # Google Cloud TTS
+  google_tts:
+    provider: "google_tts"
+    api_url: "https://texttospeech.googleapis.com/v1/text:synthesize"
+    voices:
+      - voice_name: "vi-VN-Wavenet-A"
+        language: "vi-VN"
+        gender: "female"
+        description: "Giọng nữ Wavenet tiếng Việt (tự nhiên)"
+      - voice_name: "vi-VN-Standard-A"
+        language: "vi-VN"
+        gender: "female"
+        description: "Giọng nữ Standard tiếng Việt (nhanh, rẻ)"
+    default_voice: "vi-VN-Wavenet-A"
+    default_params:
+      speaking_rate: 1.0
+      pitch: 0.0
+      volume_gain_db: 0.0
+      audio_encoding: "MP3"
+    api_key_env: "GOOGLE_CLOUD_API_KEY"
+    enabled: false
+
+  # Azure TTS
+  azure_tts:
+    provider: "azure_tts"
+    api_url: "https://{region}.tts.speech.microsoft.com/cognitiveservices/v1"
+    region: "southeastasia" 
+    voices:
+      - voice_name: "vi-VN-HoaiMyNeural"
+        language: "vi-VN"
+        gender: "female"
+        description: "Giọng nữ HoaiMy Neural (Azure)"
+      - voice_name: "vi-VN-NamMinhNeural"
+        language: "vi-VN"
+        gender: "male"
+        description: "Giọng nam NamMinh Neural (Azure)"
+    default_voice: "vi-VN-HoaiMyNeural"
+    default_params:
+      rate: "0%"
+      pitch: "0%"
+      volume: "100"
+      output_format: "audio-24khz-48kbitrate-mono-mp3"
+    api_key_env: "AZURE_SPEECH_KEY"
+    enabled: false
+
+  # Local TTS (pyttsx3 - Offline)
+  pyttsx3:
+    provider: "pyttsx3"
+    api_url: null  # Local library
+    voices:
+      - voice_id: "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_ZIRA_11.0"
+        name: "Microsoft Zira (EN-US)"
+        language: "en-US"
+        gender: "female"
+    default_voice: 0  # Voice index
+    default_params:
+      rate: 150
+      volume: 1.0
+    api_key_env: null
+    enabled: false
+
+  # Edge TTS (Free, không cần API key)
+  edge_tts:
+    provider: "edge_tts"
+    api_url: null  # Uses edge-tts library
+    voices:
+      - voice_name: "vi-VN-HoaiMyNeural"
+        language: "vi-VN"
+        gender: "female"
+        description: "Giọng nữ HoaiMy (Edge TTS - Free)"
+      - voice_name: "vi-VN-NamMinhNeural"
+        language: "vi-VN"
+        gender: "male"
+        description: "Giọng nam NamMinh (Edge TTS - Free)"
+    default_voice: "vi-VN-HoaiMyNeural"
+    default_params:
+      rate: "+15%"      # Tăng 15% tốc độ nói
+      volume: "+0%"
+      pitch: "+0Hz"
+    api_key_env: null
+    enabled: true       # Đang dùng Edge TTS (Free, không giới hạn)
+
+# ============ ACTIVE CONFIGURATION ============
+# Chọn provider đang sử dụng
+active:
+  llm: "deepseek"      # Options: deepseek, openai, anthropic, google, ollama
+  tts: "elevenlabs"    # Options: elevenlabs, google_tts, azure_tts, pyttsx3, edge_tts
+
+# ============ FALLBACK CONFIGURATION ============
+# Provider dự phòng khi provider chính lỗi
+fallback:
+  llm: "openai"        # Fallback LLM nếu Deepseek lỗi
+  tts: "edge_tts"      # Fallback TTS nếu ElevenLabs lỗi (free, unlimited)
+  enabled: true        # Bật/tắt chế độ fallback
+
+# ============ DATABASE & SERVICES ============
+# ⚠️ ChromaDB and Embedding configs MOVED to config/database.yaml
+# database.yaml uses environment variables for security
+# This section is kept for backward compatibility but should not be used
+
+# Please use config/database.yaml instead:
+# - Supports auto-detect mode (cloud/local)
+# - Uses environment variables for credentials
+# - More secure and flexible
+
+# COST TRACKING
+cost_tracking:
+  enabled: true
+  currency: "USD"
+  limits:
+    daily_limit: 10.0   # USD
+    monthly_limit: 100.0

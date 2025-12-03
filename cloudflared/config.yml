@@ -1,0 +1,22 @@
+tunnel: meilin-tunnel
+credentials-file: /etc/cloudflared/meilin-tunnel-credentials.json
+
+ingress:
+  # MeiLin API Server
+  - hostname: meilin.truongcongdinh.org
+    service: http://meilin-api:5000
+  
+  # MeiLin Telegram Bot Webhook (optional)
+  - hostname: telegram-meilin.truongcongdinh.org
+    service: http://meilin-telegram:5000
+  
+  # MeiLin YouTube Livestream (optional)
+  - hostname: youtube-meilin.truongcongdinh.org
+    service: http://meilin-youtube:5000
+  
+  # ChromaDB (if using local ChromaDB)
+  - hostname: chroma-meilin.truongcongdinh.org
+    service: http://chromadb:8000
+  
+  # Fallback 404
+  - service: http_status:404

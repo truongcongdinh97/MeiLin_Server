@@ -1,0 +1,23 @@
+# MeiLin ESP32 Firmware v1.1.0
+# This is a demo firmware file for testing OTA functionality
+# Actual firmware would be compiled ESP32 binary
+
+# Firmware Info:
+# Version: v1.1.0
+# Board: ESP32-S3
+# Features:
+# - Improved wake word detection
+# - Enhanced audio processing
+# - Better WiFi stability
+# - New voice commands support
+# - OTA update capability
+
+# This is just a placeholder file for testing OTA downloads
+# Real firmware would be a compiled .bin file from ESP-IDF
+
+# File size: 1024 bytes (demo)
+# MD5: 5d41402abc4b2a76b9719d911017c592
+# Release Date: 2025-11-29
+
+# OTA Test File - Not actual firmware
+# For testing OTA download functionality only

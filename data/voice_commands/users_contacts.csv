@@ -1,0 +1,12 @@
+UID,Name,Platform,Phone,Email,Notes
+U001,A,Zalo,912345678.0,a@company.com,Team Lead
+U002,B,Telegram,912345679.0,b@company.com,Developer
+U003,C,Email,,c@company.com,Manager
+U004,D,Zalo,912345680.0,d@company.com,Designer
+U005,E,Telegram,912345681.0,e@company.com,Tester
+U006,F,Email,,f@company.com,Analyst
+U007,G,Zalo,912345682.0,g@company.com,Product Owner
+U008,H,Telegram,912345683.0,h@company.com,Scrum Master
+U009,I,Email,,i@company.com,QA Lead
+U010,J,Zalo,912345684.0,j@company.com,DevOps
+U011,IntegrationTest,Slack,0911222333,test@integration.com,Integration test user
