@@ -38,6 +38,7 @@ services:
       start_period: 40s
     networks:
       - meilin-network
+      - cloudflared-network
 
   # 2. Telegram Bot (Optional - separate service)
   meilin-telegram:
@@ -135,6 +136,9 @@ services:
 networks:
   meilin-network:
     driver: bridge
+  cloudflared-network:
+    external: true
+    name: docker-all_docker_network
 
 volumes:
   chroma_data:
