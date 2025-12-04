@@ -698,7 +698,7 @@ https://elevenlabs.io (10,000 ký tự/tháng free)
             provider_name=config['provider_key'],
             api_key='',  # Edge TTS doesn't need key
             api_base='',
-            model_name=voice,  # Voice stored in model_name
+            model=voice,  # Voice stored in model
             is_default=True
         )
         
@@ -869,7 +869,7 @@ Bạn có thể lấy Voice ID từ:
             provider_name=config['provider_key'],
             api_key=config.get('api_key', ''),
             api_base=config.get('model', ''),  # Store model here
-            model_name=config['voice'],  # Voice stored here
+            model=config['voice'],  # Voice stored here
             is_default=True
         )
         
@@ -937,7 +937,7 @@ Bạn có thể lấy Voice ID từ:
             provider_name=config['provider_key'],
             api_key=config.get('api_key', ''),
             api_base=config.get('model', ''),
-            model_name=voice_id,
+            model=voice_id,
             is_default=True
         )
         
@@ -1135,7 +1135,7 @@ Gửi địa chỉ hoặc gõ `skip` để dùng mặc định:
                 provider_name=provider_key,
                 api_key=config['api_key'],
                 api_base='',
-                model_name='',
+                model='',
                 is_default=True
             )
             
@@ -1278,7 +1278,7 @@ Bạn có muốn lưu cấu hình này không?
             provider_name=config['provider_key'],
             api_key=config.get('api_key', ''),
             api_base=config.get('api_base', ''),
-            model_name=config.get('model', ''),
+            model=config.get('model', ''),
             is_default=True
         )
         
