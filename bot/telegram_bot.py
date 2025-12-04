@@ -56,6 +56,8 @@ class State(Enum):
     API_SELECT_PROVIDER = auto()  # Which LLM provider
     TTS_SELECT_PROVIDER = auto()  # Which TTS provider
     TTS_SELECT_VOICE = auto()     # Which voice for TTS
+    TTS_SELECT_MODEL = auto()     # Which model for ElevenLabs
+    TTS_ENTER_VOICE_ID = auto()   # Enter custom voice ID
     API_ENTER_KEY = auto()        # Enter API key
     API_ENTER_BASE = auto()       # Enter base URL (optional)
     API_ENTER_MODEL = auto()      # Enter model name (optional)
@@ -168,7 +170,22 @@ TTS_PROVIDERS = {
         'emoji': '🎵',
         'description': 'Giọng nói AI chất lượng cao',
         'requires_key': True,
-        'key_hint': 'API key từ elevenlabs.io'
+        'key_hint': 'API key từ elevenlabs.io',
+        'models': {
+            'eleven_multilingual_v2': 'Multilingual v2 (Tốt nhất)',
+            'eleven_turbo_v2_5': 'Turbo v2.5 (Nhanh)',
+            'eleven_turbo_v2': 'Turbo v2',
+            'eleven_monolingual_v1': 'English v1'
+        },
+        'default_model': 'eleven_multilingual_v2',
+        'popular_voices': {
+            'Rachel': 'Nữ, ấm áp, tự nhiên',
+            'Bella': 'Nữ, nhẹ nhàng, dễ thương',
+            'Antoni': 'Nam, trầm ấm',
+            'Josh': 'Nam, trẻ trung',
+            'Arnold': 'Nam, mạnh mẽ',
+            'Elli': 'Nữ, trẻ trung'
+        }
     },
     'google_tts': {
         'name': 'Google Cloud TTS',
@@ -597,6 +614,36 @@ Edge TTS không cần API key! Bạn chỉ cần chọn giọng nói.
             session['current_config']['skip_api_key'] = True
             return State.TTS_SELECT_VOICE.value
         
+        # ElevenLabs - need API key, then model & voice selection
+        if provider_key == 'elevenlabs':
+            step_indicator = self.build_step_indicator(1, 4, "Nhập API Key")
+            
+            msg = f"""
+{step_indicator}
+
+🎵 **ElevenLabs - Giọng nói AI cao cấp**
+
+🔑 **Nhập API Key từ elevenlabs.io**
+
+📝 Bạn có thể lấy API key miễn phí tại:
+https://elevenlabs.io (10,000 ký tự/tháng free)
+
+⚠️ **Lưu ý bảo mật:**
+• API key sẽ được **mã hóa** trước khi lưu
+• Không chia sẻ key với người khác
+
+📨 **Gửi API key của bạn:**
+"""
+            keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data='wizard_tts')]]
+            
+            await query.edit_message_text(
+                msg,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            
+            return State.API_ENTER_KEY.value
+        
         # Other TTS providers - need API key
         step_indicator = self.build_step_indicator(2, 3, "Nhập API Key")
         
@@ -678,6 +725,248 @@ Edge TTS không cần API key! Bạn chỉ cần chọn giọng nói.
             keyboard = [[InlineKeyboardButton("🔄 Thử lại", callback_data='wizard_tts')]]
         
         await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.MAIN_MENU.value
+    
+    async def wizard_elevenlabs_select_model(self, update: Update, context: CallbackContext) -> int:
+        """Show ElevenLabs model selection after API key"""
+        query = update.callback_query
+        await query.answer()
+        
+        tg_user_id = update.effective_user.id
+        session = self.get_session(tg_user_id)
+        provider = TTS_PROVIDERS.get('elevenlabs')
+        
+        step_indicator = self.build_step_indicator(2, 4, "Chọn Model")
+        
+        msg = f"""
+{step_indicator}
+
+🎵 **Chọn Model ElevenLabs**
+
+Các model khác nhau phù hợp với các use case khác nhau:
+
+"""
+        keyboard = []
+        for model_id, model_name in provider['models'].items():
+            msg += f"• **{model_name}**\n"
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{'⭐ ' if model_id == provider['default_model'] else ''}{model_name}",
+                    callback_data=f'el_model_{model_id}'
+                )
+            ])
+        
+        keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='wizard_tts')])
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.TTS_SELECT_MODEL.value
+    
+    async def wizard_elevenlabs_handle_model(self, update: Update, context: CallbackContext) -> int:
+        """Handle ElevenLabs model selection, then show voice options"""
+        query = update.callback_query
+        await query.answer()
+        
+        model_id = query.data.replace('el_model_', '')
+        
+        tg_user_id = update.effective_user.id
+        session = self.get_session(tg_user_id)
+        config = session['current_config']
+        config['model'] = model_id
+        
+        provider = TTS_PROVIDERS.get('elevenlabs')
+        step_indicator = self.build_step_indicator(3, 4, "Chọn Giọng nói")
+        
+        msg = f"""
+{step_indicator}
+
+🎤 **Chọn Giọng nói ElevenLabs**
+
+**Model đã chọn:** {provider['models'].get(model_id, model_id)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Giọng nói phổ biến:**
+
+"""
+        keyboard = []
+        for voice_name, voice_desc in provider['popular_voices'].items():
+            msg += f"• **{voice_name}** - {voice_desc}\n"
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"🎤 {voice_name}",
+                    callback_data=f'el_voice_{voice_name}'
+                )
+            ])
+        
+        keyboard.append([
+            InlineKeyboardButton("✏️ Nhập Voice ID tùy chỉnh", callback_data='el_voice_custom')
+        ])
+        keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='wizard_tts')])
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.TTS_SELECT_VOICE.value
+    
+    async def wizard_elevenlabs_handle_voice(self, update: Update, context: CallbackContext) -> int:
+        """Handle ElevenLabs voice selection and save config"""
+        query = update.callback_query
+        await query.answer()
+        
+        voice_data = query.data.replace('el_voice_', '')
+        
+        tg_user_id = update.effective_user.id
+        session = self.get_session(tg_user_id)
+        config = session['current_config']
+        
+        # Custom voice - ask for Voice ID
+        if voice_data == 'custom':
+            msg = """
+✏️ **Nhập Voice ID tùy chỉnh**
+
+Bạn có thể lấy Voice ID từ:
+1. ElevenLabs Dashboard → Voices → Click vào voice → Copy ID
+2. Hoặc từ Voice Library: https://elevenlabs.io/voice-library
+
+📝 **Ví dụ:** `21m00Tcm4TlvDq8ikWAM`
+
+📨 **Gửi Voice ID của bạn:**
+"""
+            keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data='wizard_tts')]]
+            
+            await query.edit_message_text(
+                msg,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            return State.TTS_ENTER_VOICE_ID.value
+        
+        # Predefined voice
+        config['voice'] = voice_data
+        
+        # Save to database
+        db_user_id = context.user_data.get('db_user_id') or session.get('db_user_id')
+        if not db_user_id:
+            db_user_id = self.get_or_create_db_user(update)
+        
+        # For ElevenLabs, store model in api_base and voice in model_name
+        success = self.user_manager.save_api_config(
+            user_id=db_user_id,
+            provider_type='tts',
+            provider_name=config['provider_key'],
+            api_key=config.get('api_key', ''),
+            api_base=config.get('model', ''),  # Store model here
+            model_name=config['voice'],  # Voice stored here
+            is_default=True
+        )
+        
+        if success:
+            self.clear_session_config(tg_user_id)
+            
+            provider = TTS_PROVIDERS.get('elevenlabs')
+            model_name = provider['models'].get(config.get('model', ''), config.get('model', ''))
+            
+            msg = f"""
+🎉 **Cấu hình ElevenLabs đã được lưu!**
+
+✅ **Provider:** ElevenLabs
+🧠 **Model:** {model_name}
+🎤 **Voice:** {config['voice']}
+
+**Tiếp theo, bạn muốn làm gì?**
+"""
+            keyboard = [
+                [InlineKeyboardButton("🤖 Đổi LLM (AI)", callback_data='wizard_llm')],
+                [InlineKeyboardButton("😊 Cấu hình Personality", callback_data='menu_personality')],
+                [InlineKeyboardButton("💬 Bắt đầu chat ngay!", callback_data='start_chat')],
+                [InlineKeyboardButton("🏠 Menu chính", callback_data='back_main')]
+            ]
+        else:
+            msg = "❌ **Có lỗi xảy ra khi lưu cấu hình.**\n\nVui lòng thử lại."
+            keyboard = [[InlineKeyboardButton("🔄 Thử lại", callback_data='wizard_tts')]]
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.MAIN_MENU.value
+    
+    async def wizard_elevenlabs_enter_voice_id(self, update: Update, context: CallbackContext) -> int:
+        """Handle custom Voice ID input for ElevenLabs"""
+        tg_user_id = update.effective_user.id
+        session = self.get_session(tg_user_id)
+        config = session['current_config']
+        
+        voice_id = update.message.text.strip()
+        
+        # Basic validation
+        if len(voice_id) < 10:
+            await update.message.reply_text(
+                "❌ **Voice ID không hợp lệ!**\n\n"
+                "Voice ID thường có 20+ ký tự.\n"
+                "Vui lòng kiểm tra lại và gửi lại:",
+                parse_mode='Markdown'
+            )
+            return State.TTS_ENTER_VOICE_ID.value
+        
+        config['voice'] = voice_id
+        
+        # Save to database
+        db_user_id = context.user_data.get('db_user_id') or session.get('db_user_id')
+        if not db_user_id:
+            db_user_id = self.get_or_create_db_user(update)
+        
+        success = self.user_manager.save_api_config(
+            user_id=db_user_id,
+            provider_type='tts',
+            provider_name=config['provider_key'],
+            api_key=config.get('api_key', ''),
+            api_base=config.get('model', ''),
+            model_name=voice_id,
+            is_default=True
+        )
+        
+        if success:
+            self.clear_session_config(tg_user_id)
+            
+            provider = TTS_PROVIDERS.get('elevenlabs')
+            model_name = provider['models'].get(config.get('model', ''), config.get('model', ''))
+            
+            msg = f"""
+🎉 **Cấu hình ElevenLabs đã được lưu!**
+
+✅ **Provider:** ElevenLabs
+🧠 **Model:** {model_name}
+🎤 **Voice ID:** `{voice_id[:20]}...`
+
+**Tiếp theo, bạn muốn làm gì?**
+"""
+            keyboard = [
+                [InlineKeyboardButton("🤖 Đổi LLM (AI)", callback_data='wizard_llm')],
+                [InlineKeyboardButton("😊 Cấu hình Personality", callback_data='menu_personality')],
+                [InlineKeyboardButton("💬 Bắt đầu chat ngay!", callback_data='start_chat')],
+                [InlineKeyboardButton("🏠 Menu chính", callback_data='back_main')]
+            ]
+        else:
+            msg = "❌ **Có lỗi xảy ra khi lưu cấu hình.**\n\nVui lòng thử lại."
+            keyboard = [[InlineKeyboardButton("🔄 Thử lại", callback_data='wizard_tts')]]
+        
+        await update.message.reply_text(
             msg,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
@@ -767,7 +1056,13 @@ Gửi địa chỉ hoặc gõ `skip` để dùng mặc định:
         
         api_key = update.message.text.strip()
         provider_key = config['provider_key']
-        provider = LLM_PROVIDERS.get(provider_key)
+        provider_type = config.get('provider_type', 'llm')
+        
+        # Get provider info based on type
+        if provider_type == 'tts':
+            provider = TTS_PROVIDERS.get(provider_key)
+        else:
+            provider = LLM_PROVIDERS.get(provider_key)
         
         # Delete user's message containing API key for security
         try:
@@ -777,7 +1072,7 @@ Gửi địa chỉ hoặc gõ `skip` để dùng mặc định:
         
         # Validate format (basic check)
         import re
-        if provider.get('key_format'):
+        if provider and provider.get('key_format'):
             if not re.match(provider['key_format'], api_key):
                 await update.message.reply_text(
                     f"❌ **API Key không đúng định dạng!**\n\n"
@@ -792,6 +1087,86 @@ Gửi địa chỉ hoặc gõ `skip` để dùng mặc định:
         config['api_key'] = encrypted_key
         config['api_key_masked'] = self.api_key_manager.mask_api_key(api_key)
         
+        # ElevenLabs TTS - go to model selection
+        if provider_type == 'tts' and provider_key == 'elevenlabs':
+            step_indicator = self.build_step_indicator(2, 4, "Chọn Model")
+            el_provider = TTS_PROVIDERS.get('elevenlabs')
+            
+            msg = f"""
+{step_indicator}
+
+✅ **API Key đã được mã hóa!**
+🔐 Key: `{config['api_key_masked']}`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎵 **Chọn Model ElevenLabs:**
+
+"""
+            keyboard = []
+            for model_id, model_name in el_provider['models'].items():
+                is_default = model_id == el_provider['default_model']
+                msg += f"{'⭐ ' if is_default else '• '}{model_name}\n"
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"{'⭐ ' if is_default else ''}{model_name}",
+                        callback_data=f'el_model_{model_id}'
+                    )
+                ])
+            
+            keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='wizard_tts')])
+            
+            await update.message.reply_text(
+                msg,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            return State.TTS_SELECT_MODEL.value
+        
+        # Other TTS providers - save directly
+        if provider_type == 'tts':
+            db_user_id = context.user_data.get('db_user_id') or session.get('db_user_id')
+            if not db_user_id:
+                db_user_id = self.get_or_create_db_user(update)
+            
+            success = self.user_manager.save_api_config(
+                user_id=db_user_id,
+                provider_type='tts',
+                provider_name=provider_key,
+                api_key=config['api_key'],
+                api_base='',
+                model_name='',
+                is_default=True
+            )
+            
+            if success:
+                self.clear_session_config(tg_user_id)
+                msg = f"""
+🎉 **Cấu hình TTS đã được lưu!**
+
+✅ **Provider:** {provider['name']}
+🔐 **API Key:** {config['api_key_masked']}
+
+**Tiếp theo, bạn muốn làm gì?**
+"""
+                keyboard = [
+                    [InlineKeyboardButton("🤖 Đổi LLM (AI)", callback_data='wizard_llm')],
+                    [InlineKeyboardButton("😊 Cấu hình Personality", callback_data='menu_personality')],
+                    [InlineKeyboardButton("💬 Bắt đầu chat ngay!", callback_data='start_chat')],
+                    [InlineKeyboardButton("🏠 Menu chính", callback_data='back_main')]
+                ]
+            else:
+                msg = "❌ **Có lỗi xảy ra khi lưu cấu hình.**\n\nVui lòng thử lại."
+                keyboard = [[InlineKeyboardButton("🔄 Thử lại", callback_data='wizard_tts')]]
+            
+            await update.message.reply_text(
+                msg,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            return State.MAIN_MENU.value
+        
+        # LLM providers - continue with base URL
         step_indicator = self.build_step_indicator(3, 4, "Cấu hình nâng cao")
         
         msg = f"""
@@ -2822,7 +3197,18 @@ Chọn thiết bị để test:
                     CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
                 ],
                 State.TTS_SELECT_VOICE.value: [
+                    CallbackQueryHandler(self.wizard_elevenlabs_handle_voice, pattern='^el_voice_'),
                     CallbackQueryHandler(self.wizard_tts_select_voice, pattern='^tts_voice_'),
+                    CallbackQueryHandler(self.wizard_tts_start, pattern='^wizard_tts$'),
+                    CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
+                ],
+                State.TTS_SELECT_MODEL.value: [
+                    CallbackQueryHandler(self.wizard_elevenlabs_handle_model, pattern='^el_model_'),
+                    CallbackQueryHandler(self.wizard_tts_start, pattern='^wizard_tts$'),
+                    CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
+                ],
+                State.TTS_ENTER_VOICE_ID.value: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.wizard_elevenlabs_enter_voice_id),
                     CallbackQueryHandler(self.wizard_tts_start, pattern='^wizard_tts$'),
                     CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
                 ],
