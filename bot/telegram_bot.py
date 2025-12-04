@@ -106,6 +106,12 @@ class State(Enum):
     IOT_MANAGE_DEVICE = auto()
     IOT_CONFIRM_DELETE = auto()
     IOT_TEST_DEVICE = auto()
+    
+    # STT Configuration (Speech-to-Text)
+    STT_MENU = auto()
+    STT_SELECT_PROVIDER = auto()
+    STT_ENTER_KEY = auto()
+    STT_CONFIRM = auto()
 
 
 # ============================================================
@@ -202,6 +208,36 @@ TTS_PROVIDERS = {
         'description': 'Microsoft Azure Speech Services',
         'requires_key': True,
         'key_hint': 'Azure Speech API key'
+    }
+}
+
+# STT (Speech-to-Text) Providers Configuration
+STT_PROVIDERS = {
+    'vosk': {
+        'name': 'Vosk (Free Local)',
+        'emoji': '🆓',
+        'description': 'Nhận diện giọng nói offline, miễn phí 100%',
+        'requires_key': False,
+        'default_model': 'vosk-model-small-vi',
+        'notes': 'Chạy local, không cần internet, bảo mật cao'
+    },
+    'groq': {
+        'name': 'Groq Whisper (Free API)',
+        'emoji': '⚡',
+        'description': 'Whisper siêu nhanh, miễn phí với rate limit',
+        'requires_key': True,
+        'key_hint': 'Lấy API key miễn phí tại console.groq.com',
+        'default_model': 'whisper-large-v3',
+        'notes': 'Nhanh nhất, chính xác cao, miễn phí'
+    },
+    'openai': {
+        'name': 'OpenAI Whisper',
+        'emoji': '🎤',
+        'description': 'Whisper API chính thức từ OpenAI',
+        'requires_key': True,
+        'key_hint': 'Sử dụng OpenAI API key',
+        'default_model': 'whisper-1',
+        'notes': 'Chất lượng cao, có phí theo phút'
     }
 }
 
@@ -417,10 +453,15 @@ Bạn có thể đổi sang LLM/TTS khác nếu muốn chất lượng tốt hơ
             InlineKeyboardButton("🏠 Điều khiển Smart Home", callback_data='menu_iot')
         ])
         
-        # Optional: Đổi LLM/TTS (tùy chọn, không bắt buộc)
+        # Optional: Đổi LLM/TTS/STT (tùy chọn, không bắt buộc)
         keyboard.append([
             InlineKeyboardButton("🤖 Đổi LLM", callback_data='wizard_llm'),
             InlineKeyboardButton("🎙️ Đổi TTS", callback_data='wizard_tts')
+        ])
+        
+        # STT Configuration - NEW
+        keyboard.append([
+            InlineKeyboardButton("🎤 Đổi STT (Nhận diện giọng nói)", callback_data='menu_stt')
         ])
         
         # Knowledge Base & Personality
@@ -3153,6 +3194,235 @@ Chọn thiết bị để test:
         return State.IOT_MENU.value
     
     # ============================================================
+    # STT (SPEECH-TO-TEXT) CONFIGURATION HANDLERS
+    # ============================================================
+    async def menu_stt(self, update: Update, context: CallbackContext) -> int:
+        """Show STT configuration menu"""
+        query = update.callback_query
+        await query.answer()
+        
+        db_user_id = self.get_or_create_db_user(update)
+        current_config = self.user_manager.get_stt_config(db_user_id)
+        current_provider = current_config.get('provider_name', 'vosk')
+        
+        provider_info = STT_PROVIDERS.get(current_provider, STT_PROVIDERS['vosk'])
+        
+        msg = f"""
+🎤 **Cấu hình STT (Speech-to-Text)**
+
+**Nhà cung cấp hiện tại:**
+{provider_info['emoji']} **{provider_info['name']}**
+📝 {provider_info['description']}
+💡 {provider_info.get('notes', '')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Các lựa chọn STT:**
+
+🆓 **Vosk (Mặc định):** Miễn phí, chạy offline
+⚡ **Groq Whisper:** Miễn phí, siêu nhanh, online
+🎤 **OpenAI Whisper:** Chất lượng cao, có phí
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ **Lưu ý:** STT chỉ hoạt động khi bạn sử dụng 
+**MeiLin Full Control** (WebSocket server riêng).
+Nếu dùng XiaoZhi Cloud, STT được xử lý bởi XiaoZhi.
+"""
+        
+        keyboard = []
+        
+        for provider_id, provider in STT_PROVIDERS.items():
+            status = "✅" if provider_id == current_provider else ""
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{provider['emoji']} {provider['name']} {status}",
+                    callback_data=f'stt_select_{provider_id}'
+                )
+            ])
+        
+        keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='back_main')])
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.STT_MENU.value
+    
+    async def stt_select_provider(self, update: Update, context: CallbackContext) -> int:
+        """Handle STT provider selection"""
+        query = update.callback_query
+        await query.answer()
+        
+        tg_user_id = update.effective_user.id
+        db_user_id = self.get_or_create_db_user(update)
+        
+        # Parse selected provider
+        provider_id = query.data.replace('stt_select_', '')
+        
+        if provider_id not in STT_PROVIDERS:
+            await query.edit_message_text("❌ Nhà cung cấp không hợp lệ")
+            return State.STT_MENU.value
+        
+        provider = STT_PROVIDERS[provider_id]
+        
+        # Store in session
+        self.sessions.setdefault(tg_user_id, {})['stt_provider'] = provider_id
+        
+        # Vosk doesn't require API key
+        if not provider.get('requires_key', False):
+            # Save directly
+            success = self.user_manager.save_stt_config(
+                user_id=db_user_id,
+                provider_name=provider_id,
+                api_key=None,
+                model=provider.get('default_model')
+            )
+            
+            if success:
+                msg = f"""
+✅ **Đã cấu hình STT thành công!**
+
+{provider['emoji']} **{provider['name']}**
+📝 {provider['description']}
+
+💡 {provider.get('notes', '')}
+
+_STT sẽ được sử dụng khi ESP32 kết nối với MeiLin WebSocket Server._
+"""
+            else:
+                msg = "❌ Lỗi khi lưu cấu hình STT"
+            
+            keyboard = [
+                [InlineKeyboardButton("🎤 Đổi STT khác", callback_data='menu_stt')],
+                [InlineKeyboardButton("🔙 Menu chính", callback_data='back_main')]
+            ]
+            
+            await query.edit_message_text(
+                msg,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            return State.STT_MENU.value
+        
+        # Providers that require API key
+        msg = f"""
+🔑 **Nhập API Key cho {provider['name']}**
+
+{provider['emoji']} **{provider['name']}**
+📝 {provider['description']}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 **Hướng dẫn lấy API key:**
+"""
+        
+        if provider_id == 'groq':
+            msg += """
+1. Truy cập https://console.groq.com
+2. Đăng ký tài khoản (miễn phí)
+3. Vào mục "API Keys"
+4. Tạo key mới và copy
+"""
+        elif provider_id == 'openai':
+            msg += """
+1. Truy cập https://platform.openai.com
+2. Đăng nhập tài khoản
+3. Vào "API Keys" trong Settings
+4. Tạo key mới và copy
+
+⚠️ OpenAI Whisper có phí: ~$0.006/phút
+"""
+        
+        msg += "\n**Vui lòng gửi API key:**"
+        
+        keyboard = [[InlineKeyboardButton("❌ Hủy", callback_data='menu_stt')]]
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.STT_ENTER_KEY.value
+    
+    async def stt_enter_key(self, update: Update, context: CallbackContext) -> int:
+        """Handle STT API key input"""
+        tg_user_id = update.effective_user.id
+        db_user_id = self.get_or_create_db_user(update)
+        api_key = update.message.text.strip()
+        
+        # Get provider from session
+        provider_id = self.sessions.get(tg_user_id, {}).get('stt_provider')
+        
+        if not provider_id or provider_id not in STT_PROVIDERS:
+            await update.message.reply_text("❌ Phiên làm việc đã hết hạn. Vui lòng thử lại.")
+            return State.MAIN_MENU.value
+        
+        provider = STT_PROVIDERS[provider_id]
+        
+        # Validate API key format (basic validation)
+        if len(api_key) < 20:
+            await update.message.reply_text(
+                "❌ API key không hợp lệ (quá ngắn). Vui lòng kiểm tra lại.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔄 Thử lại", callback_data=f'stt_select_{provider_id}')],
+                    [InlineKeyboardButton("❌ Hủy", callback_data='menu_stt')]
+                ])
+            )
+            return State.STT_ENTER_KEY.value
+        
+        # Encrypt and save
+        encrypted_key = self.api_key_manager.encrypt_api_key(api_key)
+        success = self.user_manager.save_stt_config(
+            user_id=db_user_id,
+            provider_name=provider_id,
+            api_key=encrypted_key,
+            model=provider.get('default_model')
+        )
+        
+        # Delete the message containing API key for security
+        try:
+            await update.message.delete()
+        except:
+            pass
+        
+        if success:
+            msg = f"""
+✅ **Đã cấu hình STT thành công!**
+
+{provider['emoji']} **{provider['name']}**
+🔑 API Key: ****{api_key[-4:]}
+🎯 Model: {provider.get('default_model', 'default')}
+
+💡 {provider.get('notes', '')}
+
+_STT sẽ được sử dụng khi ESP32 kết nối với MeiLin WebSocket Server._
+"""
+        else:
+            msg = "❌ Lỗi khi lưu cấu hình STT"
+        
+        keyboard = [
+            [InlineKeyboardButton("🎤 Đổi STT khác", callback_data='menu_stt')],
+            [InlineKeyboardButton("🔙 Menu chính", callback_data='back_main')]
+        ]
+        
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        # Clear session
+        if tg_user_id in self.sessions:
+            self.sessions[tg_user_id].pop('stt_provider', None)
+        
+        return State.STT_MENU.value
+    
+    # ============================================================
     # CHAT MEMBER STATUS HANDLER (User blocked/deleted chat)
     # ============================================================
     async def handle_my_chat_member(self, update: Update, context: CallbackContext) -> None:
@@ -3241,6 +3511,7 @@ Chọn thiết bị để test:
                     CallbackQueryHandler(self.wizard_start, pattern='^wizard_start$'),
                     CallbackQueryHandler(self.wizard_llm_start, pattern='^wizard_llm$'),
                     CallbackQueryHandler(self.wizard_tts_start, pattern='^wizard_tts$'),
+                    CallbackQueryHandler(self.menu_stt, pattern='^menu_stt$'),
                     CallbackQueryHandler(self.menu_personality, pattern='^menu_personality$'),
                     CallbackQueryHandler(self.menu_knowledge, pattern='^menu_knowledge$'),
                     CallbackQueryHandler(self.menu_esp, pattern='^menu_esp$'),
@@ -3388,6 +3659,16 @@ Chọn thiết bị để test:
                     CallbackQueryHandler(self.iot_execute_test, pattern='^iot_exec_'),
                     CallbackQueryHandler(self.iot_test_device, pattern='^iot_test_device$'),
                     CallbackQueryHandler(self.menu_iot, pattern='^menu_iot$'),
+                ],
+                # STT Configuration states
+                State.STT_MENU.value: [
+                    CallbackQueryHandler(self.stt_select_provider, pattern='^stt_select_'),
+                    CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
+                ],
+                State.STT_ENTER_KEY.value: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.stt_enter_key),
+                    CallbackQueryHandler(self.menu_stt, pattern='^menu_stt$'),
+                    CallbackQueryHandler(self.stt_select_provider, pattern='^stt_select_'),
                 ],
             },
             fallbacks=[

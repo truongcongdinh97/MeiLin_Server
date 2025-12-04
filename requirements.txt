@@ -35,3 +35,15 @@ keyboard
 google-api-python-client
 google-auth-oauthlib
 google-auth-httplib2
+
+# WebSocket server for ESP32
+websockets>=11.0
+
+# STT (Speech-to-Text) providers
+vosk  # Free offline STT (Vietnamese model available)
+groq  # Free Whisper API
+openai  # Paid Whisper API
+
+# Audio processing
+pydub  # Audio format conversion
+opuslib  # Opus codec for WebSocket audio

@@ -32,14 +32,24 @@ class UserManager:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
-            # Read and execute schema SQL
-            schema_path = Path("database/schema.sql")
-            if schema_path.exists():
-                with open(schema_path, 'r', encoding='utf-8') as f:
-                    schema_sql = f.read()
-                cursor.executescript(schema_sql)
-                logger.info("Database schema initialized successfully")
-            else:
+            # Read and execute schema SQL - try multiple locations
+            possible_schema_paths = [
+                Path(__file__).parent.parent.parent / "database" / "schema.sql",  # server/database
+                Path(__file__).parent.parent.parent.parent / "database" / "schema.sql",  # root/database
+                Path("database/schema.sql"),  # relative
+            ]
+            
+            schema_loaded = False
+            for schema_path in possible_schema_paths:
+                if schema_path.exists():
+                    with open(schema_path, 'r', encoding='utf-8') as f:
+                        schema_sql = f.read()
+                    cursor.executescript(schema_sql)
+                    logger.info(f"Database schema initialized from {schema_path}")
+                    schema_loaded = True
+                    break
+            
+            if not schema_loaded:
                 logger.warning("Schema file not found, creating basic tables")
                 self._create_basic_tables(cursor)
             
@@ -606,6 +616,67 @@ class UserManager:
         except Exception as e:
             logger.error(f"Error getting user count: {e}")
             return 0
+
+    # STT Configuration Methods
+    
+    def save_stt_config(self, user_id: int, provider_name: str,
+                       api_key: str = None, model: str = None) -> bool:
+        """
+        Save STT configuration for user
+        
+        Args:
+            user_id: User ID
+            provider_name: Provider name (vosk, groq, openai)
+            api_key: API key (required for groq, openai)
+            model: Model name (optional, e.g., whisper-large-v3)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        return self.save_api_config(
+            user_id=user_id,
+            provider_type='stt',
+            provider_name=provider_name,
+            api_key=api_key,
+            model=model,
+            is_default=True  # STT config is always default (only one active)
+        )
+    
+    def get_stt_config(self, user_id: int) -> Optional[Dict]:
+        """
+        Get STT configuration for user
+        
+        Args:
+            user_id: User ID
+        
+        Returns:
+            STT configuration or default Vosk config
+        """
+        config = self.get_default_api_config(user_id, 'stt')
+        
+        # Return default Vosk config if no config exists
+        if not config:
+            return {
+                'provider_name': 'vosk',
+                'api_key': None,
+                'model': 'vosk-model-small-vn-0.4',
+                'is_default': True
+            }
+        
+        return config
+    
+    def get_stt_provider_name(self, user_id: int) -> str:
+        """
+        Get current STT provider name for user
+        
+        Args:
+            user_id: User ID
+        
+        Returns:
+            Provider name (vosk, groq, openai)
+        """
+        config = self.get_stt_config(user_id)
+        return config.get('provider_name', 'vosk')
 
 
 # Singleton instance
