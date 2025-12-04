@@ -6,6 +6,7 @@ With step-by-step guided setup using Telegram User ID for identification
 
 import os
 import io
+import json
 import logging
 import asyncio
 from datetime import datetime
@@ -52,7 +53,9 @@ class State(Enum):
     # API Configuration
     API_MENU = auto()
     API_SELECT_TYPE = auto()      # LLM or TTS
-    API_SELECT_PROVIDER = auto()  # Which provider
+    API_SELECT_PROVIDER = auto()  # Which LLM provider
+    TTS_SELECT_PROVIDER = auto()  # Which TTS provider
+    TTS_SELECT_VOICE = auto()     # Which voice for TTS
     API_ENTER_KEY = auto()        # Enter API key
     API_ENTER_BASE = auto()       # Enter base URL (optional)
     API_ENTER_MODEL = auto()      # Enter model name (optional)
@@ -397,7 +400,8 @@ Bạn có thể đổi sang LLM/TTS khác nếu muốn chất lượng tốt hơ
         
         # Optional: Đổi LLM/TTS (tùy chọn, không bắt buộc)
         keyboard.append([
-            InlineKeyboardButton("🔄 Đổi LLM/TTS (tùy chọn)", callback_data='wizard_start')
+            InlineKeyboardButton("🤖 Đổi LLM", callback_data='wizard_llm'),
+            InlineKeyboardButton("🎙️ Đổi TTS", callback_data='wizard_tts')
         ])
         
         # Knowledge Base & Personality
@@ -418,7 +422,7 @@ Bạn có thể đổi sang LLM/TTS khác nếu muốn chất lượng tốt hơ
     # SETUP WIZARD (OPTIONAL - Default is XiaoZhi free)
     # ============================================================
     async def wizard_start(self, update: Update, context: CallbackContext) -> int:
-        """Start the setup wizard - OPTIONAL: Change LLM/TTS provider"""
+        """Start the setup wizard - Show menu to choose LLM or TTS"""
         query = update.callback_query
         await query.answer()
         
@@ -433,7 +437,44 @@ Bạn chỉ cần đổi nếu muốn chất lượng tốt hơn.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🤖 **Chọn nhà cung cấp AI (LLM):**
+**Bạn muốn thay đổi gì?**
+
+🤖 **LLM (AI):** Thay đổi bộ não AI xử lý hội thoại
+🎙️ **TTS (Giọng nói):** Thay đổi giọng nói AI
+"""
+        
+        keyboard = [
+            [InlineKeyboardButton("🤖 Đổi nhà cung cấp LLM", callback_data='wizard_llm')],
+            [InlineKeyboardButton("🎙️ Đổi nhà cung cấp TTS", callback_data='wizard_tts')],
+            [InlineKeyboardButton("🆓 Giữ XiaoZhi miễn phí", callback_data='back_main')],
+            [InlineKeyboardButton("🔙 Quay lại", callback_data='back_main')]
+        ]
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.API_SELECT_TYPE.value
+    
+    async def wizard_llm_start(self, update: Update, context: CallbackContext) -> int:
+        """Start LLM provider selection wizard"""
+        query = update.callback_query
+        await query.answer()
+        
+        tg_user_id = update.effective_user.id
+        self.clear_session_config(tg_user_id)
+        
+        msg = """
+🤖 **Đổi nhà cung cấp LLM (AI)**
+
+⚠️ **Lưu ý:** Mặc định ESP đã dùng **XiaoZhi Cloud miễn phí**.
+Bạn chỉ cần đổi nếu muốn chất lượng tốt hơn.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Chọn nhà cung cấp AI (LLM):**
 
 """
         # Add provider descriptions
@@ -453,7 +494,7 @@ Bạn chỉ cần đổi nếu muốn chất lượng tốt hơn.
         keyboard.append([
             InlineKeyboardButton("🆓 Giữ XiaoZhi miễn phí", callback_data='back_main')
         ])
-        keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='back_main')])
+        keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='wizard_start')])
         
         await query.edit_message_text(
             msg,
@@ -462,6 +503,187 @@ Bạn chỉ cần đổi nếu muốn chất lượng tốt hơn.
         )
         
         return State.API_SELECT_PROVIDER.value
+    
+    async def wizard_tts_start(self, update: Update, context: CallbackContext) -> int:
+        """Start TTS provider selection wizard"""
+        query = update.callback_query
+        await query.answer()
+        
+        tg_user_id = update.effective_user.id
+        self.clear_session_config(tg_user_id)
+        
+        msg = """
+🎙️ **Đổi nhà cung cấp TTS (Giọng nói)**
+
+⚠️ **Lưu ý:** Mặc định ESP đã dùng **XiaoZhi Cloud miễn phí**.
+Bạn chỉ cần đổi nếu muốn giọng nói tốt hơn.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Chọn nhà cung cấp TTS:**
+
+"""
+        # Add provider descriptions
+        keyboard = []
+        for key, provider in TTS_PROVIDERS.items():
+            msg += f"{provider['emoji']} **{provider['name']}**\n"
+            msg += f"   _{provider['description']}_\n\n"
+            
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{provider['emoji']} {provider['name']}",
+                    callback_data=f'select_tts_{key}'
+                )
+            ])
+        
+        # Add option to keep XiaoZhi (skip)
+        keyboard.append([
+            InlineKeyboardButton("🆓 Giữ XiaoZhi miễn phí", callback_data='back_main')
+        ])
+        keyboard.append([InlineKeyboardButton("🔙 Quay lại", callback_data='wizard_start')])
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.TTS_SELECT_PROVIDER.value
+    
+    async def wizard_select_tts(self, update: Update, context: CallbackContext) -> int:
+        """Handle TTS provider selection"""
+        query = update.callback_query
+        await query.answer()
+        
+        # Extract provider from callback
+        provider_key = query.data.replace('select_tts_', '')
+        provider = TTS_PROVIDERS.get(provider_key)
+        
+        if not provider:
+            await query.answer("❌ Provider không hợp lệ", show_alert=True)
+            return State.TTS_SELECT_PROVIDER.value
+        
+        # Store in session
+        tg_user_id = update.effective_user.id
+        session = self.get_session(tg_user_id)
+        session['current_config'] = {
+            'provider_type': 'tts',
+            'provider_key': provider_key,
+            'provider_name': provider['name']
+        }
+        
+        # Edge TTS - no API key needed, show voice selection
+        if provider_key == 'edge_tts':
+            msg = """
+🆓 **Edge TTS - Giọng nói miễn phí**
+
+Edge TTS không cần API key! Bạn chỉ cần chọn giọng nói.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎤 **Chọn giọng nói tiếng Việt:**
+"""
+            keyboard = [
+                [InlineKeyboardButton("👩 HoaiMy (Nữ, tự nhiên)", callback_data='tts_voice_vi-VN-HoaiMyNeural')],
+                [InlineKeyboardButton("👨 NamMinh (Nam, trầm)", callback_data='tts_voice_vi-VN-NamMinhNeural')],
+                [InlineKeyboardButton("🔙 Quay lại", callback_data='wizard_tts')]
+            ]
+            
+            await query.edit_message_text(
+                msg,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            session['current_config']['skip_api_key'] = True
+            return State.TTS_SELECT_VOICE.value
+        
+        # Other TTS providers - need API key
+        step_indicator = self.build_step_indicator(2, 3, "Nhập API Key")
+        
+        msg = f"""
+{step_indicator}
+
+🔑 **Nhập API Key cho {provider['name']}**
+
+{provider['emoji']} Bạn cần lấy API key từ trang web của {provider['name']}.
+
+📝 **Định dạng:** {provider.get('key_hint', 'Theo hướng dẫn của provider')}
+
+⚠️ **Lưu ý bảo mật:**
+• API key sẽ được **mã hóa** trước khi lưu
+• Không chia sẻ key với người khác
+• Bạn có thể xóa key bất cứ lúc nào
+
+📨 **Gửi API key của bạn:**
+"""
+        
+        keyboard = [[InlineKeyboardButton("🔙 Quay lại", callback_data='wizard_tts')]]
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.API_ENTER_KEY.value
+    
+    async def wizard_tts_select_voice(self, update: Update, context: CallbackContext) -> int:
+        """Handle TTS voice selection"""
+        query = update.callback_query
+        await query.answer()
+        
+        # Extract voice from callback
+        voice = query.data.replace('tts_voice_', '')
+        
+        tg_user_id = update.effective_user.id
+        session = self.get_session(tg_user_id)
+        config = session['current_config']
+        config['voice'] = voice
+        
+        db_user_id = context.user_data.get('db_user_id') or session.get('db_user_id')
+        if not db_user_id:
+            db_user_id = self.get_or_create_db_user(update)
+        
+        # Save TTS config
+        success = self.user_manager.save_api_config(
+            user_id=db_user_id,
+            provider_type='tts',
+            provider_name=config['provider_key'],
+            api_key='',  # Edge TTS doesn't need key
+            api_base='',
+            model_name=voice,  # Voice stored in model_name
+            is_default=True
+        )
+        
+        if success:
+            self.clear_session_config(tg_user_id)
+            
+            voice_name = "HoaiMy (Nữ)" if "HoaiMy" in voice else "NamMinh (Nam)"
+            msg = f"""
+🎉 **Cấu hình TTS đã được lưu!**
+
+✅ **Provider:** Edge TTS (Free)
+🎤 **Giọng nói:** {voice_name}
+
+**Tiếp theo, bạn muốn làm gì?**
+"""
+            keyboard = [
+                [InlineKeyboardButton("🤖 Đổi LLM (AI)", callback_data='wizard_llm')],
+                [InlineKeyboardButton("😊 Cấu hình Personality", callback_data='menu_personality')],
+                [InlineKeyboardButton("💬 Bắt đầu chat ngay!", callback_data='start_chat')],
+                [InlineKeyboardButton("🏠 Menu chính", callback_data='back_main')]
+            ]
+        else:
+            msg = "❌ **Có lỗi xảy ra khi lưu cấu hình.**\n\nVui lòng thử lại."
+            keyboard = [[InlineKeyboardButton("🔄 Thử lại", callback_data='wizard_tts')]]
+        
+        await query.edit_message_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        return State.MAIN_MENU.value
     
     async def wizard_select_llm(self, update: Update, context: CallbackContext) -> int:
         """Handle LLM provider selection"""
@@ -697,14 +919,14 @@ Bạn có muốn lưu cấu hình này không?
 **Tiếp theo, bạn muốn làm gì?**
 """
             keyboard = [
+                [InlineKeyboardButton("🎙️ Đổi TTS (giọng nói)", callback_data='wizard_tts')],
                 [InlineKeyboardButton("😊 Cấu hình Personality", callback_data='menu_personality')],
-                [InlineKeyboardButton("🎙️ Thêm TTS (giọng nói)", callback_data='menu_tts')],
                 [InlineKeyboardButton("💬 Bắt đầu chat ngay!", callback_data='start_chat')],
                 [InlineKeyboardButton("🏠 Menu chính", callback_data='back_main')]
             ]
         else:
             msg = "❌ **Có lỗi xảy ra khi lưu cấu hình.**\n\nVui lòng thử lại."
-            keyboard = [[InlineKeyboardButton("🔄 Thử lại", callback_data='wizard_start')]]
+            keyboard = [[InlineKeyboardButton("🔄 Thử lại", callback_data='wizard_llm')]]
         
         await query.edit_message_text(
             msg,
@@ -2570,6 +2792,8 @@ Chọn thiết bị để test:
             states={
                 State.MAIN_MENU.value: [
                     CallbackQueryHandler(self.wizard_start, pattern='^wizard_start$'),
+                    CallbackQueryHandler(self.wizard_llm_start, pattern='^wizard_llm$'),
+                    CallbackQueryHandler(self.wizard_tts_start, pattern='^wizard_tts$'),
                     CallbackQueryHandler(self.menu_personality, pattern='^menu_personality$'),
                     CallbackQueryHandler(self.menu_knowledge, pattern='^menu_knowledge$'),
                     CallbackQueryHandler(self.menu_esp, pattern='^menu_esp$'),
@@ -2582,12 +2806,30 @@ Chọn thiết bị để test:
                     # Accept Excel file anytime from main menu
                     MessageHandler(filters.Document.ALL, self.kb_handle_upload_anytime),
                 ],
+                State.API_SELECT_TYPE.value: [
+                    CallbackQueryHandler(self.wizard_llm_start, pattern='^wizard_llm$'),
+                    CallbackQueryHandler(self.wizard_tts_start, pattern='^wizard_tts$'),
+                    CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
+                ],
                 State.API_SELECT_PROVIDER.value: [
                     CallbackQueryHandler(self.wizard_select_llm, pattern='^select_llm_'),
+                    CallbackQueryHandler(self.wizard_start, pattern='^wizard_start$'),
+                    CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
+                ],
+                State.TTS_SELECT_PROVIDER.value: [
+                    CallbackQueryHandler(self.wizard_select_tts, pattern='^select_tts_'),
+                    CallbackQueryHandler(self.wizard_start, pattern='^wizard_start$'),
+                    CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
+                ],
+                State.TTS_SELECT_VOICE.value: [
+                    CallbackQueryHandler(self.wizard_tts_select_voice, pattern='^tts_voice_'),
+                    CallbackQueryHandler(self.wizard_tts_start, pattern='^wizard_tts$'),
                     CallbackQueryHandler(self.back_to_main, pattern='^back_main$'),
                 ],
                 State.API_ENTER_KEY.value: [
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.wizard_enter_api_key),
+                    CallbackQueryHandler(self.wizard_llm_start, pattern='^wizard_llm$'),
+                    CallbackQueryHandler(self.wizard_tts_start, pattern='^wizard_tts$'),
                     CallbackQueryHandler(self.wizard_start, pattern='^wizard_start$'),
                 ],
                 State.API_ENTER_BASE.value: [
