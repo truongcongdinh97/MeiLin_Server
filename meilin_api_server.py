@@ -1116,10 +1116,10 @@ def public_register_page():
             </div>
             
             <div class="form-group">
-                <label for="device_name">🏷️ Device Name (tùy chọn)</label>
+                <label for="device_name">👤 Tên của bạn</label>
                 <input type="text" id="device_name" name="device_name" 
-                       placeholder="MeiLin Phòng khách">
-                <p class="hint">Tên dễ nhớ cho device của bạn</p>
+                       placeholder="Định">
+                <p class="hint">MeiLin sẽ gọi bạn bằng tên này (VD: Anh Định, Chị Lan)</p>
             </div>
             
             <button type="submit" id="submitBtn">
