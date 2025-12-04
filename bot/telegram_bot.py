@@ -22,8 +22,10 @@ from telegram.ext import (
     CallbackQueryHandler,
     CallbackContext,
     ConversationHandler,
+    ChatMemberHandler,
     filters
 )
+from telegram.constants import ChatMemberStatus
 
 # Import managers
 import sys
@@ -3151,6 +3153,76 @@ Chọn thiết bị để test:
         return State.IOT_MENU.value
     
     # ============================================================
+    # CHAT MEMBER STATUS HANDLER (User blocked/deleted chat)
+    # ============================================================
+    async def handle_my_chat_member(self, update: Update, context: CallbackContext) -> None:
+        """
+        Handle when user blocks the bot or deletes the chat.
+        When user deletes chat for both sides (also deletes for bot),
+        this triggers with status 'kicked' or 'left'.
+        
+        This will delete all user data from database.
+        """
+        chat_member_update = update.my_chat_member
+        if not chat_member_update:
+            return
+        
+        new_status = chat_member_update.new_chat_member.status
+        old_status = chat_member_update.old_chat_member.status
+        tg_user = chat_member_update.from_user
+        
+        logger.info(f"Chat member status changed for user {tg_user.id} ({tg_user.username}): {old_status} -> {new_status}")
+        
+        # User blocked the bot or left/deleted chat
+        if new_status in [ChatMemberStatus.BANNED, ChatMemberStatus.LEFT]:
+            logger.info(f"User {tg_user.id} blocked/left bot. Deleting all user data...")
+            
+            # Find user in database by telegram_id (str)
+            db_user = self.user_manager.get_user(telegram_id=str(tg_user.id))
+            
+            if db_user:
+                db_user_id = db_user['id']
+                
+                # Delete user's knowledge base
+                try:
+                    self.knowledge_manager.delete_user_knowledge(str(tg_user.id))
+                    logger.info(f"Deleted knowledge base for user {tg_user.id}")
+                except Exception as e:
+                    logger.error(f"Error deleting knowledge base: {e}")
+                
+                # Delete user's ESP devices
+                try:
+                    esp_devices = self.esp_device_manager.get_devices_by_user(db_user_id)
+                    for device in esp_devices:
+                        self.esp_device_manager.delete_device(device['device_id'])
+                    logger.info(f"Deleted {len(esp_devices)} ESP devices for user {tg_user.id}")
+                except Exception as e:
+                    logger.error(f"Error deleting ESP devices: {e}")
+                
+                # Delete user's IoT devices
+                try:
+                    iot_devices = self.iot_controller.list_user_devices(db_user_id)
+                    for device in iot_devices:
+                        self.iot_controller.delete_device(db_user_id, device['device_id'])
+                    logger.info(f"Deleted {len(iot_devices)} IoT devices for user {tg_user.id}")
+                except Exception as e:
+                    logger.error(f"Error deleting IoT devices: {e}")
+                
+                # Delete user from database (includes API configs via CASCADE)
+                success = self.user_manager.delete_user(db_user_id)
+                if success:
+                    logger.info(f"Successfully deleted user {db_user_id} (telegram_id: {tg_user.id}) from database")
+                else:
+                    logger.error(f"Failed to delete user {db_user_id} from database")
+            else:
+                logger.info(f"User {tg_user.id} not found in database, nothing to delete")
+            
+            # Clear session data
+            if tg_user.id in self.sessions:
+                del self.sessions[tg_user.id]
+                logger.info(f"Cleared session for user {tg_user.id}")
+    
+    # ============================================================
     # BUILD APPLICATION
     # ============================================================
     def build_application(self) -> Application:
@@ -3329,6 +3401,9 @@ Chọn thiết bị để test:
         )
         
         app.add_handler(conv_handler)
+        
+        # Handler for when user blocks bot or deletes chat
+        app.add_handler(ChatMemberHandler(self.handle_my_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
         
         # Global handler for any callback that wasn't handled (expired sessions)
         app.add_handler(CallbackQueryHandler(self.handle_expired_callback))
