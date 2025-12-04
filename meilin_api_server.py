@@ -35,6 +35,18 @@ print(f"✅ MeiLin API Server đã sẵn sàng! (TTS: {tts_config['provider']})"
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
+@app.route('/audio/<filename>', methods=['GET'])
+def serve_audio(filename):
+    """Serve TTS audio files"""
+    import os
+    audio_dir = os.path.join(os.path.dirname(__file__), 'audio_cache')
+    audio_path = os.path.join(audio_dir, filename)
+    
+    if os.path.exists(audio_path):
+        return send_file(audio_path, mimetype='audio/mpeg')
+    else:
+        return jsonify({"error": "Audio not found"}), 404
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Kiểm tra server có hoạt động không"""
@@ -721,10 +733,40 @@ def esp_chat_with_keys():
         
         print(f"[MeiLin] → {device_info['device_name']}: {response_text[:80]}...")
         
+        # Generate TTS if user has TTS config
+        audio_url = None
+        try:
+            tts_config = api_key_manager.get_api_key(user_id_str, 'tts')
+            if tts_config and tts_config.get('provider'):
+                # Create user-specific TTS provider
+                user_tts_config = {
+                    'provider': tts_config.get('provider', 'edge_tts'),
+                    'api_key': tts_config.get('api_key', ''),
+                    'voice': tts_config.get('model', ''),  # model field stores voice
+                    'model': tts_config.get('api_base', ''),  # api_base stores ElevenLabs model
+                }
+                user_tts = ProviderFactory.create_tts_provider(
+                    user_tts_config['provider'], 
+                    user_tts_config
+                )
+                
+                # Generate audio file
+                audio_path = user_tts.generate_audio_file(response_text)
+                if audio_path:
+                    # Return relative URL for ESP32 to download
+                    import os
+                    filename = os.path.basename(audio_path)
+                    audio_url = f"/audio/{filename}"
+                    print(f"[TTS] Generated: {audio_url}")
+        except Exception as tts_error:
+            print(f"[TTS] Warning - TTS generation failed: {tts_error}")
+            # Continue without audio
+        
         return jsonify({
             "status": "success",
             "response": response_text,
-            "device": device_info['device_name']
+            "device": device_info['device_name'],
+            "audio_url": audio_url
         }), 200
         
     except Exception as e:
