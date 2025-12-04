@@ -3423,6 +3423,154 @@ _STT sẽ được sử dụng khi ESP32 kết nối với MeiLin WebSocket Serv
         return State.STT_MENU.value
     
     # ============================================================
+    # DELETE MY DATA COMMAND
+    # ============================================================
+    async def cmd_delete_my_data(self, update: Update, context: CallbackContext) -> None:
+        """
+        Handle /delete_my_data command - Let user delete all their data
+        """
+        tg_user = update.effective_user
+        
+        # Ask for confirmation
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Xác nhận xóa tất cả", callback_data='confirm_delete_all_data'),
+                InlineKeyboardButton("❌ Hủy", callback_data='cancel_delete_data')
+            ]
+        ]
+        
+        msg = f"""
+⚠️ **Xác nhận xóa dữ liệu**
+
+Bạn sắp xóa **tất cả dữ liệu** của mình:
+
+🗑️ **Sẽ bị xóa:**
+├─ 📚 Knowledge Base (tài liệu đã upload)
+├─ 📱 ESP Devices đã đăng ký
+├─ 🏠 IoT Devices đã cấu hình
+├─ 🔑 API Keys đã lưu (LLM, TTS, STT)
+├─ 😊 Cấu hình Personality
+└─ 👤 Thông tin tài khoản
+
+⚠️ **Hành động này không thể hoàn tác!**
+
+Bạn có chắc chắn muốn xóa?
+"""
+        
+        await update.message.reply_text(
+            msg,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+    
+    async def confirm_delete_all_data(self, update: Update, context: CallbackContext) -> None:
+        """Execute data deletion after user confirmation"""
+        query = update.callback_query
+        await query.answer()
+        
+        tg_user = update.effective_user
+        
+        # Show processing message
+        await query.edit_message_text("🔄 Đang xóa dữ liệu của bạn...")
+        
+        deleted_items = []
+        errors = []
+        
+        # Find user in database
+        db_user = self.user_manager.get_user(telegram_id=str(tg_user.id))
+        
+        if db_user:
+            db_user_id = db_user['id']
+            
+            # 1. Delete Knowledge Base
+            try:
+                self.knowledge_manager.delete_user_knowledge(str(tg_user.id))
+                deleted_items.append("📚 Knowledge Base")
+                logger.info(f"Deleted knowledge base for user {tg_user.id}")
+            except Exception as e:
+                errors.append(f"Knowledge Base: {e}")
+                logger.error(f"Error deleting knowledge base: {e}")
+            
+            # 2. Delete ESP Devices
+            try:
+                esp_devices = self.esp_device_manager.get_devices_by_user(db_user_id)
+                for device in esp_devices:
+                    self.esp_device_manager.delete_device(device['device_id'])
+                if esp_devices:
+                    deleted_items.append(f"📱 {len(esp_devices)} ESP Device(s)")
+                logger.info(f"Deleted {len(esp_devices)} ESP devices for user {tg_user.id}")
+            except Exception as e:
+                errors.append(f"ESP Devices: {e}")
+                logger.error(f"Error deleting ESP devices: {e}")
+            
+            # 3. Delete IoT Devices
+            try:
+                iot_devices = self.iot_controller.list_user_devices(db_user_id)
+                for device in iot_devices:
+                    self.iot_controller.delete_device(db_user_id, device['device_id'])
+                if iot_devices:
+                    deleted_items.append(f"🏠 {len(iot_devices)} IoT Device(s)")
+                logger.info(f"Deleted {len(iot_devices)} IoT devices for user {tg_user.id}")
+            except Exception as e:
+                errors.append(f"IoT Devices: {e}")
+                logger.error(f"Error deleting IoT devices: {e}")
+            
+            # 4. Delete User (CASCADE deletes API configs, personality, etc.)
+            try:
+                success = self.user_manager.delete_user(db_user_id)
+                if success:
+                    deleted_items.append("👤 Tài khoản & cấu hình")
+                    logger.info(f"Deleted user {db_user_id} (telegram_id: {tg_user.id})")
+                else:
+                    errors.append("User deletion failed")
+            except Exception as e:
+                errors.append(f"User: {e}")
+                logger.error(f"Error deleting user: {e}")
+        else:
+            deleted_items.append("ℹ️ Không tìm thấy dữ liệu trong database")
+        
+        # Clear session data
+        if tg_user.id in self.sessions:
+            del self.sessions[tg_user.id]
+            deleted_items.append("🔄 Session data")
+        
+        # Build result message
+        if errors:
+            msg = f"""
+⚠️ **Xóa dữ liệu hoàn tất (có lỗi)**
+
+✅ **Đã xóa:**
+{chr(10).join('├─ ' + item for item in deleted_items)}
+
+❌ **Lỗi:**
+{chr(10).join('├─ ' + err for err in errors)}
+
+Gõ /start để tạo tài khoản mới.
+"""
+        else:
+            msg = f"""
+✅ **Đã xóa tất cả dữ liệu!**
+
+🗑️ **Đã xóa:**
+{chr(10).join('├─ ' + item for item in deleted_items)}
+
+👋 Cảm ơn bạn đã sử dụng MeiLin!
+Gõ /start để tạo tài khoản mới bất cứ lúc nào.
+"""
+        
+        await query.edit_message_text(msg, parse_mode='Markdown')
+    
+    async def cancel_delete_data(self, update: Update, context: CallbackContext) -> None:
+        """Cancel data deletion"""
+        query = update.callback_query
+        await query.answer("Đã hủy xóa dữ liệu")
+        
+        await query.edit_message_text(
+            "✅ **Đã hủy!**\n\nDữ liệu của bạn vẫn được giữ nguyên.\nGõ /start để quay lại menu.",
+            parse_mode='Markdown'
+        )
+    
+    # ============================================================
     # CHAT MEMBER STATUS HANDLER (User blocked/deleted chat)
     # ============================================================
     async def handle_my_chat_member(self, update: Update, context: CallbackContext) -> None:
@@ -3682,6 +3830,13 @@ _STT sẽ được sử dụng khi ESP32 kết nối với MeiLin WebSocket Serv
         )
         
         app.add_handler(conv_handler)
+        
+        # Command handler for /delete_my_data (outside conversation)
+        app.add_handler(CommandHandler('delete_my_data', self.cmd_delete_my_data))
+        
+        # Callback handlers for delete confirmation
+        app.add_handler(CallbackQueryHandler(self.confirm_delete_all_data, pattern='^confirm_delete_all_data$'))
+        app.add_handler(CallbackQueryHandler(self.cancel_delete_data, pattern='^cancel_delete_data$'))
         
         # Handler for when user blocks bot or deletes chat
         app.add_handler(ChatMemberHandler(self.handle_my_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
