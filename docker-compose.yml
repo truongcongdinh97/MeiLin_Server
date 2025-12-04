@@ -46,7 +46,7 @@ services:
       dockerfile: Dockerfile
     container_name: meilin-telegram
     restart: unless-stopped
-    command: python telegram_bot.py
+    command: python bot/telegram_bot.py
     environment:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
