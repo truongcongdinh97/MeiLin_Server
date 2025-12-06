@@ -1,20 +1,21 @@
-FROM python:3.13-slim
+﻿FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (ffmpeg for audio processing)
 RUN apt-get update && apt-get install -y \
     curl \
-    wget \
-    git \
-    gcc \
-    g++ \
-    build-essential \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Install PyTorch CPU-only FIRST (saves ~8GB vs CUDA version)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+# Copy requirements and install (excluding torch since we installed it above)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN grep -v "^torch" requirements.txt > requirements_no_torch.txt && \
+    pip install --no-cache-dir -r requirements_no_torch.txt && \
+    rm requirements_no_torch.txt
 
 # Copy application code
 COPY . .
