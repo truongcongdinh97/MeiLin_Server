@@ -933,6 +933,77 @@ def get_ota_stats():
 
 
 # ============================================================
+# XiaoZhi-Compatible OTA Endpoint (for ESP32 firmware)
+# ============================================================
+
+@app.route('/xiaozhi/ota/', methods=['POST'])
+def xiaozhi_ota_endpoint():
+    """
+    XiaoZhi-compatible OTA endpoint
+    ESP32 firmware calls this to get WebSocket config
+    
+    Request Headers:
+    - Device-Id: ESP32 device MAC
+    - Client-Id: Client identifier  
+    - Activation-Version: 1 or 2
+    
+    Response JSON:
+    {
+        "websocket": {
+            "url": "wss://your-server/xiaozhi/ws"
+        },
+        "server_time": {
+            "timestamp": 1234567890,
+            "timezone_offset": 7
+        }
+    }
+    """
+    try:
+        import time
+        
+        # Get device info from headers
+        device_id = request.headers.get('Device-Id', 'unknown')
+        client_id = request.headers.get('Client-Id', '')
+        activation_version = request.headers.get('Activation-Version', '1')
+        
+        print(f"[XiaoZhi OTA] Device: {device_id}, Client: {client_id}")
+        
+        # Get WebSocket URL from environment or config
+        import os
+        ws_host = os.environ.get('MEILIN_WS_HOST', request.host.split(':')[0])
+        ws_port = os.environ.get('MEILIN_WS_PORT', '8765')
+        ws_secure = os.environ.get('MEILIN_WS_SECURE', 'false').lower() == 'true'
+        
+        # Build WebSocket URL
+        ws_protocol = 'wss' if ws_secure else 'ws'
+        ws_url = f"{ws_protocol}://{ws_host}:{ws_port}"
+        
+        # For production with Cloudflare tunnel, use the public URL
+        public_ws_url = os.environ.get('MEILIN_PUBLIC_WS_URL', ws_url)
+        
+        response = {
+            "websocket": {
+                "url": public_ws_url
+            },
+            "server_time": {
+                "timestamp": int(time.time()),
+                "timezone_offset": 7  # GMT+7 Vietnam
+            },
+            "server_version": "2.0.5"
+        }
+        
+        print(f"[XiaoZhi OTA] Response: WebSocket URL = {public_ws_url}")
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        print(f"[ERROR] XiaoZhi OTA error: {e}")
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+# ============================================================
 # PUBLIC RAG API - Cho ESP32 devices (read-only knowledge base)
 # ============================================================
 from modules.public_rag_api import get_public_rag_api, require_api_key

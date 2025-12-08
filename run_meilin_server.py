@@ -128,6 +128,14 @@ async def run_websocket_server():
 
 def main():
     """Main entry point - run both servers"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='MeiLin Full Control Server')
+    parser.add_argument('--websocket-only', action='store_true', 
+                        help='Run only WebSocket server (no Flask)')
+    parser.add_argument('--flask-only', action='store_true',
+                        help='Run only Flask API server (no WebSocket)')
+    args = parser.parse_args()
     
     print("\n" + "="*70)
     print("🚀 MeiLin Full Control Server")
@@ -172,19 +180,33 @@ def main():
     print("Starting servers...")
     print("-" * 70)
     
-    # Start Flask server in a separate thread
-    flask_thread = threading.Thread(target=run_flask_server, daemon=True)
-    flask_thread.start()
-    logger.info("✅ Flask API server started on http://0.0.0.0:5000")
-    
-    # Run WebSocket server in main asyncio loop
-    try:
-        asyncio.run(run_websocket_server())
-    except KeyboardInterrupt:
-        logger.info("Shutting down servers...")
-    except Exception as e:
-        logger.error(f"Server error: {e}")
-        raise
+    # Handle different modes
+    if args.websocket_only:
+        logger.info("Running WebSocket server only (port 8765)")
+        try:
+            asyncio.run(run_websocket_server())
+        except KeyboardInterrupt:
+            logger.info("Shutting down WebSocket server...")
+        except Exception as e:
+            logger.error(f"WebSocket server error: {e}")
+            raise
+    elif args.flask_only:
+        logger.info("Running Flask API server only (port 5000)")
+        run_flask_server()
+    else:
+        # Start Flask server in a separate thread
+        flask_thread = threading.Thread(target=run_flask_server, daemon=True)
+        flask_thread.start()
+        logger.info("✅ Flask API server started on http://0.0.0.0:5000")
+        
+        # Run WebSocket server in main asyncio loop
+        try:
+            asyncio.run(run_websocket_server())
+        except KeyboardInterrupt:
+            logger.info("Shutting down servers...")
+        except Exception as e:
+            logger.error(f"Server error: {e}")
+            raise
 
 
 if __name__ == '__main__':

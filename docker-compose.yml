@@ -107,7 +107,36 @@ services:
     networks:
       - meilin-network
 
-  # 4. Cloudflared Tunnel
+  # 4. MeiLin WebSocket Server (for ESP32 devices)
+  meilin-websocket:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: meilin-websocket
+    restart: unless-stopped
+    command: python run_meilin_server.py --websocket-only
+    ports:
+      - "8765:8765"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./audio_cache:/app/audio_cache
+      - ./database:/app/database
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - meilin-api
+    networks:
+      - meilin-network
+      - cloudflared-network
+
+  # 5. Cloudflared Tunnel
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: meilin-cloudflared
