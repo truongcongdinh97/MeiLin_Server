@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  # 1. MeiLin API Server (FastAPI)
+  # 1. MeiLin API Server (Flask)
   meilin-api:
     build:
       context: .
@@ -21,7 +19,7 @@ services:
       - OWNER_USERNAME=${OWNER_USERNAME}
       - CHROMADB_API_URL=${CHROMADB_API_URL}
       - CHROMADB_API_TOKEN=${CHROMADB_API_TOKEN}
-      - API_BASE_URL=https://your-domain.com
+      - API_BASE_URL=https://meilin.truongcongdinh.org
       - PYTHONUNBUFFERED=1
     volumes:
       - ./audio_cache:/app/audio_cache
@@ -40,7 +38,7 @@ services:
       - meilin-network
       - cloudflared-network
 
-  # 2. Telegram Bot (Optional - separate service)
+  # 2. Telegram Bot
   meilin-telegram:
     build:
       context: .
@@ -73,41 +71,7 @@ services:
     networks:
       - meilin-network
 
-  # 3. YouTube Livestream (Optional - separate service)
-  meilin-youtube:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: meilin-youtube
-    restart: unless-stopped
-    command: python main.py
-    environment:
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - OWNER_USER_ID=${OWNER_USER_ID}
-      - OWNER_USERNAME=${OWNER_USERNAME}
-      - CHROMADB_API_URL=${CHROMADB_API_URL}
-      - CHROMADB_API_TOKEN=${CHROMADB_API_TOKEN}
-      - PYTHONUNBUFFERED=1
-    volumes:
-      - ./audio_cache:/app/audio_cache
-      - ./database:/app/database
-      - ./config:/app/config
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./youtube_credentials.json:/app/youtube_credentials.json
-      - ./youtube_token.pickle:/app/youtube_token.pickle
-      - ./youtube.txt:/app/youtube.txt
-    depends_on:
-      - meilin-api
-    networks:
-      - meilin-network
-
-  # 4. MeiLin WebSocket Server (for ESP32 devices)
+  # 3. WebSocket Server (for ESP32 devices)
   meilin-websocket:
     build:
       context: .
@@ -123,6 +87,7 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - MEILIN_PUBLIC_WS_URL=${MEILIN_PUBLIC_WS_URL:-wss://ws-meilin.truongcongdinh.org}
       - PYTHONUNBUFFERED=1
     volumes:
       - ./audio_cache:/app/audio_cache
@@ -136,33 +101,9 @@ services:
       - meilin-network
       - cloudflared-network
 
-  # 5. Cloudflared Tunnel
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: meilin-cloudflared
-    restart: unless-stopped
-    command: tunnel run
-    volumes:
-      - ./cloudflared:/etc/cloudflared
-    environment:
-      - TUNNEL_ID=${CLOUDFLARED_TUNNEL_ID:-d6fc0f03-ae75-4a75-855c-483bbe436552}
-    depends_on:
-      - meilin-api
-    networks:
-      - meilin-network
-
-  # 5. ChromaDB (Optional - if using local ChromaDB)
-  chromadb:
-    image: chromadb/chroma:latest
-    container_name: meilin-chromadb
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./chroma_data:/app/chroma/chroma
-    command: run --host 0.0.0.0 --port 8000 --path /app/chroma/chroma
-    networks:
-      - meilin-network
+# Cloudflared tunnel đã cấu hình trong ~/docker-all/cloudflared (tunnel chung)
+# Routes: meilin.truongcongdinh.org -> meilin-api:5000
+#         ws-meilin.truongcongdinh.org -> meilin-websocket:8765
 
 networks:
   meilin-network:
@@ -170,8 +111,3 @@ networks:
   cloudflared-network:
     external: true
     name: docker-all_docker_network
-
-volumes:
-  chroma_data:
-  audio_cache:
-  database:
