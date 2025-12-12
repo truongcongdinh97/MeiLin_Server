@@ -1,36 +1,35 @@
-# ESP32 Hybrid Mode - MeiLin RAG + LLM/TTS linh hoạt
+# ESP32 MeiLin Mode - RAG + LLM/TTS linh hoạt
 
 ## 🎯 Mục đích
 
-Hybrid Mode cho phép người dùng ESP32 sử dụng:
+MeiLin Mode cho phép người dùng ESP32 sử dụng:
 - **MeiLin Knowledge Base (RAG)** - Kiến thức cá nhân hóa của bạn
-- **LLM/TTS linh hoạt** - Mặc định XiaoZhi (miễn phí), hoặc đổi sang API riêng
+- **LLM/TTS linh hoạt** - Hỗ trợ nhiều providers (miễn phí và trả phí)
 
 ## 📊 So sánh các chế độ
 
 | Chế độ | LLM | TTS | RAG | Chi phí | Yêu cầu |
 |--------|-----|-----|-----|---------|---------|
-| **XiaoZhi Pure** | XiaoZhi | XiaoZhi | ❌ | Free | Không |
-| **Hybrid Mode** | XiaoZhi *(mặc định)* | XiaoZhi *(mặc định)* | MeiLin ✅ | Free | Đăng ký Device |
-| **MeiLin Full** | User's API | User's API | MeiLin ✅ | Có | Self-host Server |
+| **MeiLin Basic** | DeepSeek (miễn phí) | Edge TTS (miễn phí) | MeiLin ✅ | Free | Đăng ký Device |
+| **MeiLin Premium** | User's API | User's API | MeiLin ✅ | Có | Self-host Server |
 
-### 💡 Hybrid Mode - Mặc định MIỄN PHÍ + Tùy chọn nâng cấp
+### 💡 MeiLin Mode - MIỄN PHÍ + Tùy chọn nâng cấp
 
 **Mặc định (không cần cấu hình gì thêm):**
 - ✅ RAG: MeiLin Server 
-- ✅ LLM: XiaoZhi Cloud (miễn phí)
-- ✅ TTS: XiaoZhi Cloud (miễn phí)
+- ✅ LLM: DeepSeek (miễn phí)
+- ✅ TTS: Edge TTS (miễn phí)
 
 **Tùy chọn nâng cấp (qua Telegram Bot):**
 - Đổi LLM: DeepSeek, OpenAI, Gemini, Groq...
 - Đổi TTS: Edge TTS, ElevenLabs, OpenAI TTS...
 - Điền API key an toàn, mã hóa bằng Fernet
 
-## 🔧 Cách hoạt động Hybrid Mode
+## 🔧 Cách hoạt động MeiLin Mode
 
 ```
 ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
-│   ESP32 Device  │      │  MeiLin Server  │      │  XiaoZhi Cloud  │
+│   ESP32 Device  │      │  MeiLin Server  │      │  External APIs  │
 │                 │      │                 │      │                 │
 │  1. Query RAG ──┼────► │  2. Search KB   │      │                 │
 │                 │ ◄────┼── 3. Context    │      │                 │
@@ -52,7 +51,7 @@ Hybrid Mode cho phép người dùng ESP32 sử dụng:
 
 ### Bước 1: Đăng ký Device qua Telegram Bot
 
-1. Mở Telegram Bot: [@MeiLinDự Án_bot](https://t.me/MeiLinDự Án_bot)
+1. Mở Telegram Bot: [@MeiLinProject_bot](https://t.me/MeiLinProject_bot)
 2. Gõ `/start` để bắt đầu
 3. Chọn **📱 ESP Devices**
 4. Chọn **➕ Đăng ký Device mới**
@@ -66,7 +65,7 @@ Hybrid Mode cho phép người dùng ESP32 sử dụng:
 
 ```
 → MeiLin Configuration
-  → Connection Mode: Hybrid (MeiLin RAG + XiaoZhi LLM)
+  → Connection Mode: MeiLin (RAG + LLM/TTS)
   → MeiLin Server URL: https://meilin.truongcongdinh.org
   → Device API Key: meilin_dev_xxxxx (key từ Bước 1)
 ```
@@ -74,7 +73,7 @@ Hybrid Mode cho phép người dùng ESP32 sử dụng:
 #### Hoặc trong code:
 
 ```cpp
-#define CONFIG_MEILIN_MODE_HYBRID   1
+#define CONFIG_MEILIN_MODE   1
 #define CONFIG_MEILIN_SERVER_URL    "https://meilin.truongcongdinh.org"
 #define CONFIG_MEILIN_DEVICE_KEY    "meilin_dev_xxxxx"
 ```
@@ -86,11 +85,11 @@ Hybrid Mode cho phép người dùng ESP32 sử dụng:
 3. Upload file Excel với kiến thức của bạn
 4. ESP sẽ tự động sử dụng kiến thức này
 
-### Bước 4: Cấu hình API riêng (Tùy chọn - Hybrid Premium)
+### Bước 4: Cấu hình API riêng (Tùy chọn - MeiLin Premium)
 
-Nếu bạn muốn dùng LLM/TTS chất lượng cao hơn XiaoZhi miễn phí:
+Nếu bạn muốn dùng LLM/TTS chất lượng cao hơn:
 
-1. Mở Telegram Bot: [@MeiLinDự Án_bot](https://t.me/MeiLinDự Án_bot)
+1. Mở Telegram Bot: [@MeiLinProject_bot](https://t.me/MeiLinProject_bot)
 2. Chọn **🔧 Cấu hình API**
 3. Chọn **LLM Provider** (DeepSeek, OpenAI, Gemini...)
 4. Nhập API Key của bạn
@@ -196,7 +195,7 @@ Content-Type: application/json
 - Rate limiting: 30 requests/phút
 - Logging đầy đủ cho audit
 
-## 📱 ESP32 Code Flow (Hybrid Mode)
+## 📱 ESP32 Code Flow (MeiLin Mode)
 
 ```cpp
 void handleVoiceQuery(const char* query) {
@@ -217,8 +216,8 @@ void handleVoiceQuery(const char* query) {
         String context = doc["context"];
         String systemPrompt = doc["system_prompt"];
         
-        // 2. Gọi XiaoZhi LLM với system prompt đã có context
-        xiaozhi_chat_with_context(query, systemPrompt);
+        // 2. Gọi LLM với system prompt đã có context
+        meilin_chat_with_context(query, systemPrompt);
     }
     http.end();
 }
@@ -226,8 +225,8 @@ void handleVoiceQuery(const char* query) {
 
 ## ❓ FAQ
 
-### Q: Hybrid Mode có miễn phí không?
-**A:** Có! Bạn chỉ cần host MeiLin Server. LLM và TTS sử dụng XiaoZhi Cloud hoàn toàn miễn phí.
+### Q: MeiLin Mode có miễn phí không?
+**A:** Có! Bạn chỉ cần host MeiLin Server. LLM và TTS sử dụng DeepSeek và Edge TTS hoàn toàn miễn phí.
 
 ### Q: Knowledge Base được lưu ở đâu?
 **A:** Trên MeiLin Server của bạn, trong ChromaDB local. Dữ liệu không rời khỏi server.
@@ -240,5 +239,5 @@ void handleVoiceQuery(const char* query) {
 
 ## 📞 Support
 
-- Telegram: [@MeiLinDự Án_bot](https://t.me/MeiLinDự Án_bot)
+- Telegram: [@MeiLinProject_bot](https://t.me/MeiLinProject_bot)
 - GitHub Issues: https://github.com/truongcongdinh97/MeiLin_Server/issues

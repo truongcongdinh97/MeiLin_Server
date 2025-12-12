@@ -7,17 +7,17 @@ MeiLin Full Control Mode cho phép bạn tự host toàn bộ pipeline xử lý 
 - **LLM (Language Model)**: Xử lý và trả lời
 - **TTS (Text-to-Speech)**: Tổng hợp giọng nói
 
-### So sánh với XiaoZhi Cloud
+### Ưu điểm của MeiLin Full Control
 
-| Tính năng | XiaoZhi Cloud | MeiLin Full Control |
-|-----------|---------------|---------------------|
-| Chi phí | Miễn phí | Miễn phí (Vosk) hoặc tùy chọn |
-| STT | XiaoZhi xử lý | Tự host (Vosk/Groq/OpenAI) |
-| LLM | Tùy chọn | Tự host |
-| TTS | Tùy chọn | Tự host |
-| Latency | Thấp | Có thể thấp hơn nếu local |
-| Privacy | Data qua XiaoZhi | 100% local với Vosk |
-| Customization | Giới hạn | Hoàn toàn tùy chỉnh |
+| Tính năng | MeiLin Full Control |
+|-----------|---------------------|
+| Chi phí | Miễn phí (Vosk) hoặc tùy chọn |
+| STT | Tự host (Vosk/Groq/OpenAI) |
+| LLM | Tự host |
+| TTS | Tự host |
+| Latency | Có thể thấp hơn nếu local |
+| Privacy | 100% local với Vosk |
+| Customization | Hoàn toàn tùy chỉnh |
 
 ## Cài đặt
 
@@ -71,10 +71,7 @@ Server sẽ khởi động:
 Trong firmware ESP32, thay đổi WebSocket URL:
 
 ```cpp
-// Thay XiaoZhi Cloud URL
-// ws://api.xiaozhi.me/xiaozhi/v1
-
-// Thành MeiLin Server URL
+// Cấu hình WebSocket URL cho MeiLin Server
 #define MEILIN_WS_URL "ws://YOUR_SERVER_IP:8765"
 ```
 
@@ -119,7 +116,7 @@ sudo firewall-cmd --reload
 
 ## WebSocket Protocol
 
-MeiLin WebSocket Server tương thích với XiaoZhi protocol:
+MeiLin WebSocket Server sử dụng protocol tương thích:
 
 ### Kết nối (Hello)
 ```json
